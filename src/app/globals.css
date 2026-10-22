@@ -1,26 +1,79 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@theme {
+  --color-ground: #0e0f12;
+  --color-surface: #17191e;
+  --color-raised: #20232a;
+  --color-active: #2a2e36;
+  --color-nav: #131418;
+  --color-line: #22252c;
+  --color-line-soft: #1c1f25;
+  --color-line-strong: #343843;
+  --color-ink: #f3f4f6;
+  --color-soft: #c9cdd5;
+  --color-muted: #a9aeb8;
+  --color-faint: #8e939e;
+  --color-accent: #c6f432;
+  --color-accent-hover: #ddf98a;
+  --color-accent-tint: #26301a;
+  --color-hype: #f2a93b;
+  --color-hype-tint: #33281a;
+  --color-danger: #ff8a8a;
+  --color-danger-line: #5a2a2e;
+
+  --font-sans: "Hanken Grotesk Variable", system-ui, sans-serif;
+  --font-display: "Bricolage Grotesque Variable", "Hanken Grotesk Variable", system-ui, sans-serif;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  background: var(--color-ground);
+  color-scheme: dark;
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-ground);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 20px;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+
+::selection {
+  background: var(--color-accent);
+  color: var(--color-ground);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #2a2e36 transparent;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: default;
+}
+
+input[type="checkbox"] {
+  accent-color: var(--color-accent);
+}
+
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (hover: none) {
+  .hover-only {
+    display: none;
+  }
 }
