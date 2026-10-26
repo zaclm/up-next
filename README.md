@@ -128,9 +128,14 @@ Without these, search still uses Steam and the games already in the app, and pla
 | `src/lib/db.ts` | `asUser()` sets the player for a transaction, so `auth.uid()` works inside the SQL functions |
 | `src/lib/igdb.ts` | Game catalog search |
 | `src/proxy.ts` | Keeps the Supabase session fresh and sends signed-out visitors to `/login` |
-| `e2e/flow.mjs` | Browser test of the main journey |
+| `src/i18n/` | Languages: English (`messages/en.ts`, the source), French and Arabic. TypeScript checks every language has every message |
+| `e2e/flow.mjs` | Browser test of the main journey, including Arabic (right to left) and French |
+
+### Languages
+
+The app speaks English, French and Arabic. A player's choice (Account → Language, or the switcher on the sign-in page) is kept in a cookie on that device and on their profile, so it follows them to other devices; before they choose, the browser's language is used. To add or change a sentence, edit `src/i18n/messages/en.ts`, then the same key in `fr.ts` and `ar.ts` (`npm run typecheck` lists any that are missing). Arabic plurals have six forms; use `plural()` from `src/i18n/format.ts`. Layout uses logical classes (`ms-`, `pe-`, `start-`, `text-end`) so it mirrors on its own in Arabic.
 
 ## What's next
 
-- **Phase 2:** Arabic and French, profile pages, notifications when a friend adds a game.
+- **Phase 2:** done locally: After-score reminders, install to the home screen, French and Arabic. Still to come: email reminders (needs an email sender such as Resend).
 - **Phase 3:** Steam import (owned games and playtime, to fill "can play" and suggest After scores).

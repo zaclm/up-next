@@ -6,6 +6,7 @@ import { connection } from 'next/server'
 import { db } from './db'
 import { authMode } from './env'
 import { createSupabaseServer } from './supabase/server'
+import { isLocale, type Locale } from '@/i18n/config'
 
 export const DEV_COOKIE = 'upnext_dev_uid'
 
@@ -14,6 +15,7 @@ export type Me = {
   name: string
   hue: number
   avatarUrl: string | null
+  locale: Locale | null
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -34,11 +36,13 @@ async function currentUserId(): Promise<string | null> {
 export const getMe = cache(async (): Promise<Me | null> => {
   const id = await currentUserId()
   if (!id || !UUID.test(id)) return null
-  const rows = await db()<{ id: string; display_name: string; avatar_hue: number; avatar_url: string | null }[]>`
-    select id, display_name, avatar_hue, avatar_url from public.profiles where id = ${id}
+  const rows = await db()<{ id: string; display_name: string; avatar_hue: number; avatar_url: string | null; locale: string | null }[]>`
+    select id, display_name, avatar_hue, avatar_url, locale from public.profiles where id = ${id}
   `
   const p = rows[0]
-  return p ? { id: p.id, name: p.display_name, hue: p.avatar_hue, avatarUrl: p.avatar_url } : null
+  return p
+    ? { id: p.id, name: p.display_name, hue: p.avatar_hue, avatarUrl: p.avatar_url, locale: isLocale(p.locale) ? p.locale : null }
+    : null
 })
 
 export async function requireMe(next?: string): Promise<Me> {

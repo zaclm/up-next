@@ -4,24 +4,54 @@ import { redirect } from 'next/navigation'
 import { refresh, revalidatePath } from 'next/cache'
 import { cookies, headers } from 'next/headers'
 import { asUser, db, isPostgresError, type Tx } from '@/lib/db'
-import { DEV_COOKIE, requireMe, type Me } from '@/lib/auth'
+import { DEV_COOKIE, getMe, requireMe, type Me } from '@/lib/auth'
 import { authMode } from '@/lib/env'
 import { createSupabaseServer } from '@/lib/supabase/server'
 import { isValidScore, safePath } from '@/lib/format'
 import { steamArt } from '@/lib/search/steam'
+import { getT } from '@/i18n/server'
+import { LANG_COOKIE, isLocale } from '@/i18n/config'
+import type { Messages } from '@/i18n/messages'
 
 export type Result<T = null> = { ok: true; data: T } | { ok: false; error: string }
 
-function friendly(e: { code?: string; message: string }) {
+type ErrorKey = { [K in keyof Messages['errors']]: Messages['errors'][K] extends string ? K : never }[keyof Messages['errors']]
+
+/** The database's refusals, by their (English) message, in the reader's language. */
+const SQL_MESSAGES: Record<string, ErrorKey> = {
+  'A game needs a name': 'needName',
+  'Category not found': 'categoryNotFound',
+  'Game not found in this list': 'gameNotInList',
+  'Game not found': 'gameNotFound',
+  'Give it a Before or an After score': 'giveScore',
+  'List not found': 'listNotFound',
+  'Only the list creator can bring this game back': 'creatorBringBack',
+  'Only the person who added it can remove it': 'adderOnly',
+  'Only the person who created the list can change this': 'creatorOnly',
+  'Only the person who created the list can hide games': 'creatorHide',
+  'Sign in first': 'signInFirst',
+  "That invite code doesn't match a list": 'badInvite',
+  'Unknown status': 'unknownStatus',
+  'Unknown language': 'badRequest',
+}
+
+async function fail(key: ErrorKey): Promise<{ ok: false; error: string }> {
+  return { ok: false, error: (await getT()).errors[key] }
+}
+
+async function friendly(e: { code?: string; message: string }) {
+  const t = (await getT()).errors
   switch (e.code) {
     case '23514':
-      return 'Scores go from 1 to 10 in half steps.'
+      return t.scoreRange
     case '23505':
-      return 'That already exists.'
+      return t.exists
     case '22P02':
-      return 'Something in that request looks wrong.'
-    default:
-      return e.message
+      return t.badRequest
+    default: {
+      const key = SQL_MESSAGES[e.message]
+      return key ? t[key] : e.message
+    }
   }
 }
 
@@ -32,7 +62,7 @@ async function run<T>(fn: (tx: Tx, me: Me) => Promise<T>): Promise<Result<T>> {
     const data = await asUser(me.id, (tx) => fn(tx, me))
     return { ok: true, data }
   } catch (e) {
-    if (isPostgresError(e)) return { ok: false, error: friendly(e) }
+    if (isPostgresError(e)) return { ok: false, error: await friendly(e) }
     throw e
   }
 }
@@ -40,7 +70,7 @@ async function run<T>(fn: (tx: Tx, me: Me) => Promise<T>): Promise<Result<T>> {
 function score(v: unknown): number | null {
   if (v === null || v === undefined || v === '') return null
   const n = typeof v === 'number' ? v : Number(v)
-  if (!isValidScore(n)) throw new Error('Scores go from 1 to 10 in half steps.')
+  if (!isValidScore(n)) throw new RangeError('score')
   return n
 }
 
@@ -132,11 +162,11 @@ function imageType(buf: Buffer): 'image/webp' | 'image/jpeg' | 'image/png' | nul
 
 export async function setListImage(listId: string, formData: FormData): Promise<Result> {
   const file = formData.get('image')
-  if (!(file instanceof Blob) || file.size === 0) return { ok: false, error: 'Pick a picture first.' }
-  if (file.size > IMAGE_LIMIT) return { ok: false, error: 'That picture is too big. Try another one.' }
+  if (!(file instanceof Blob) || file.size === 0) return fail('pickPicture')
+  if (file.size > IMAGE_LIMIT) return fail('pictureTooBig')
   const buf = Buffer.from(await file.arrayBuffer())
   const mime = imageType(buf)
-  if (!mime) return { ok: false, error: 'Use a JPG, PNG or WebP picture.' }
+  if (!mime) return fail('pictureType')
   const res = await run(async (tx) => {
     await tx`select public.set_list_image(${listId}::uuid, ${mime}, ${buf})`
     return null
@@ -148,6 +178,16 @@ export async function setListImage(listId: string, formData: FormData): Promise<
 export async function clearListImage(listId: string): Promise<Result> {
   const res = await run(async (tx) => {
     await tx`select public.clear_list_image(${listId}::uuid)`
+    return null
+  })
+  if (res.ok) refresh()
+  return res
+}
+
+/** "Didn't play": stop asking for an After score on a game the group played without you. */
+export async function skipAfter(listId: string, gameId: number): Promise<Result> {
+  const res = await run(async (tx) => {
+    await tx`select public.skip_after(${listId}::uuid, ${gameId}::bigint)`
     return null
   })
   if (res.ok) refresh()
@@ -177,7 +217,7 @@ export async function markListSeen(listId: string): Promise<void> {
 export async function addGamesToLists(gameIds: number[], listIds: string[]): Promise<Result<number>> {
   const g = ids(gameIds)
   const l = uuids(listIds)
-  if (!g.length || !l.length) return { ok: false, error: 'Pick at least one game and one list.' }
+  if (!g.length || !l.length) return fail('pickGameAndList')
   const res = await run(async (tx) => {
     const [r] = await tx<{ n: number }[]>`select public.add_games_to_lists(${g}::bigint[], ${l}::uuid[]) as n`
     return r.n
@@ -218,10 +258,10 @@ export async function saveScore(input: {
   try {
     before = score(input.before)
     after = score(input.after)
-  } catch (e) {
-    return { ok: false, error: (e as Error).message }
+  } catch {
+    return fail('scoreRange')
   }
-  if (before === null && after === null) return { ok: false, error: 'Give it a Before or an After score.' }
+  if (before === null && after === null) return fail('giveScore')
   const res = await run(async (tx) => {
     await tx`select public.save_score(${input.gameId}::bigint, ${before}::numeric, ${after}::numeric, ${input.canPlay})`
     return null
@@ -290,12 +330,12 @@ export async function addGameToLibrary(input: {
   let before: number | null
   try {
     before = score(input.before)
-  } catch (e) {
-    return { ok: false, error: (e as Error).message }
+  } catch {
+    return fail('scoreRange')
   }
-  if (before === null) return { ok: false, error: 'Give it a Before score (how hyped are you?).' }
+  if (before === null) return fail('giveBefore')
   const title = input.title.trim()
-  if (!title) return { ok: false, error: 'A game needs a name.' }
+  if (!title) return fail('needName')
   const steamAppid = Number.isSafeInteger(input.steamAppid) && input.steamAppid! > 0 ? input.steamAppid! : null
   const coverUrl = await workingCover(allowedCover(input.coverUrl), allowedCover(input.coverFallback ?? null), steamAppid)
 
@@ -373,6 +413,24 @@ export async function updateProfileName(formData: FormData): Promise<Result> {
   return res
 }
 
+// ----- Language ------------------------------------------------------------------------------
+
+/** The app's language: kept on this device for a year, and on the profile for other devices. */
+export async function setLanguage(locale: string): Promise<void> {
+  if (!isLocale(locale)) return
+  ;(await cookies()).set(LANG_COOKIE, locale, { path: '/', maxAge: 60 * 60 * 24 * 365, sameSite: 'lax' })
+  const me = await getMe()
+  if (me) {
+    try {
+      await asUser(me.id, (tx) => tx`select public.set_locale(${locale})`)
+    } catch (e) {
+      // The device keeps the choice even if the profile can't be updated right now.
+      console.error('[set-locale]', (e as Error).message)
+    }
+  }
+  revalidatePath('/', 'layout')
+}
+
 // ----- Sign in / out -----------------------------------------------------------------------------
 
 const safeNext = safePath
@@ -392,7 +450,7 @@ export async function signInWithDiscord(formData: FormData) {
     provider: 'discord',
     options: { redirectTo: `${await origin()}/auth/callback?next=${encodeURIComponent(next)}`, scopes: 'identify email' },
   })
-  if (error || !data.url) redirect(`/login?error=${encodeURIComponent(error?.message ?? 'Discord sign-in failed')}`)
+  if (error || !data.url) redirect(`/login?error=${encodeURIComponent(error?.message ?? (await getT()).errors.discordFailed)}`)
   redirect(data.url)
 }
 
@@ -402,7 +460,7 @@ export async function signInWithPassword(_: unknown, formData: FormData): Promis
     email: String(formData.get('email') ?? '').trim(),
     password: String(formData.get('password') ?? ''),
   })
-  if (error) return { ok: false, error: error.message === 'Invalid login credentials' ? 'Wrong email or password.' : error.message }
+  if (error) return error.message === 'Invalid login credentials' ? fail('wrongPassword') : { ok: false, error: error.message }
   redirect(safeNext(formData.get('next')))
 }
 
@@ -419,7 +477,7 @@ export async function signUpWithPassword(_: unknown, formData: FormData): Promis
     },
   })
   if (error) return { ok: false, error: error.message }
-  if (!data.session) return { ok: true, data: 'Check your email to confirm your account, then sign in.' }
+  if (!data.session) return { ok: true, data: (await getT()).errors.checkEmail }
   redirect(next)
 }
 

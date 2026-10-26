@@ -21,8 +21,10 @@
   --color-danger: #ff8a8a;
   --color-danger-line: #5a2a2e;
 
-  --font-sans: "Hanken Grotesk Variable", system-ui, sans-serif;
-  --font-display: "Bricolage Grotesque Variable", "Hanken Grotesk Variable", system-ui, sans-serif;
+  /* IBM Plex Sans Arabic only covers Arabic letters (unicode-range), so it loads only when
+     Arabic text is on the page: the interface in Arabic, or a friend's name written in Arabic. */
+  --font-sans: "Hanken Grotesk Variable", "IBM Plex Sans Arabic", system-ui, sans-serif;
+  --font-display: "Bricolage Grotesque Variable", "Hanken Grotesk Variable", "IBM Plex Sans Arabic", system-ui, sans-serif;
 }
 
 html {
@@ -66,6 +68,11 @@ button:disabled {
 
 input[type="checkbox"] {
   accent-color: var(--color-accent);
+}
+
+/* Arabic letters join up; letter spacing pulls them apart. */
+:where([lang="ar"]) * {
+  letter-spacing: normal !important;
 }
 
 .tnum {

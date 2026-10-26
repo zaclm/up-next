@@ -1,48 +1,86 @@
 import Link from 'next/link'
 import type { Metadata } from 'next'
 import { getQueue } from '@/lib/data'
-import { Cover, Icon, btn, card, cx } from '@/components/ui'
+import { joinNames, monthYear } from '@/i18n/format'
+import { getT, type T } from '@/i18n/server'
+import type { QueueItem } from '@/lib/types'
+import { Cover, Icon, SectionHeading, btn, card, cx } from '@/components/ui'
+import { SkipAfterButton } from '@/components/skip-after'
 
-export const metadata: Metadata = { title: 'To score' }
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await getT()).meta.toScore }
+}
 
 export default async function ScoreQueuePage() {
-  const queue = await getQueue()
+  const [queue, t] = await Promise.all([getQueue(), getT()])
+  const after = queue.filter((g) => g.kind === 'after')
+  const fresh = queue.filter((g) => g.kind === 'score')
   return (
-    <main className="mx-auto flex w-full max-w-[760px] flex-col gap-6 px-5 pt-4 pb-10 lg:px-10 lg:pt-7">
+    <main className="mx-auto flex w-full max-w-[760px] flex-col gap-8 px-5 pt-4 pb-10 lg:px-10 lg:pt-7">
       <header className="flex flex-col gap-1">
-        <h1 className="font-display text-[26px] leading-8 font-bold tracking-tight lg:text-[28px] lg:leading-[34px]">To score</h1>
+        <h1 className="font-display text-[26px] leading-8 font-bold tracking-tight lg:text-[28px] lg:leading-[34px]">{t.queue.title}</h1>
         <p className="flex items-center gap-2 text-[13px] text-muted lg:text-sm">
-          <Icon.lock size={14} />
-          Games in your lists you haven&apos;t scored. Other people&apos;s numbers show once you score.
+          <Icon.lock size={14} className="shrink-0" />
+          {t.queue.intro}
         </p>
       </header>
 
-      {queue.length === 0 ? (
+      {queue.length === 0 && (
         <section className={cx(card, 'flex flex-col gap-2 p-6')}>
-          <h2 className="text-base font-semibold">You&apos;re all caught up</h2>
-          <p className="text-muted">When a friend adds a game you haven&apos;t scored, it shows up here.</p>
+          <h2 className="text-base font-semibold">{t.queue.caughtUp}</h2>
+          <p className="text-muted">{t.queue.caughtUpBody}</p>
         </section>
-      ) : (
-        <ul className={cx(card, 'flex flex-col py-1')}>
-          {queue.map((g, i) => {
-            const first = g.lists[0]
-            return (
-              <li key={g.id} className={cx('flex items-center gap-3 px-4 py-3', i > 0 && 'border-t border-line')}>
-                <Cover src={g.cover_url} title={g.title} className="w-[42px] shrink-0 rounded-md" />
-                <span className="flex min-w-0 flex-1 flex-col">
-                  <span className="truncate font-semibold">{g.title}</span>
-                  <span className="truncate text-[12.5px] text-muted">
-                    {g.lists.map((l) => `${l.name} · ${l.scored_count} of ${l.member_count} scored`).join(' — ')}
-                  </span>
-                </span>
-                <Link href={`/lists/${first.id}/games/${g.id}`} className={cx(btn.score, 'shrink-0')}>
-                  Score
-                </Link>
-              </li>
-            )
-          })}
-        </ul>
+      )}
+
+      {after.length > 0 && (
+        <section aria-labelledby="after-h" className="flex flex-col gap-3">
+          <SectionHeading
+            id="after-h"
+            title={<>{t.queue.afterTitle} <span className="font-normal text-muted">· {after.length}</span></>}
+            note={t.queue.afterNote}
+          />
+          <QueueList items={after} t={t} />
+        </section>
+      )}
+
+      {fresh.length > 0 && (
+        <section aria-labelledby="new-h" className="flex flex-col gap-3">
+          {after.length > 0 && (
+            <SectionHeading id="new-h" title={<>{t.queue.needsScore} <span className="font-normal text-muted">· {fresh.length}</span></>} />
+          )}
+          <QueueList items={fresh} t={t} />
+        </section>
       )}
     </main>
+  )
+}
+
+function QueueList({ items, t }: { items: QueueItem[]; t: T }) {
+  return (
+    <ul className={cx(card, 'flex flex-col py-1')}>
+      {items.map((g, i) => {
+        const first = g.lists[0]
+        const isAfter = g.kind === 'after'
+        return (
+          <li key={`${g.kind}-${g.id}`} className={cx('flex items-center gap-3 px-4 py-3', i > 0 && 'border-t border-line')}>
+            <Cover src={g.cover_url} title={g.title} className="w-[42px] shrink-0 rounded-md" />
+            <span className="flex min-w-0 flex-1 flex-col">
+              <span className="truncate font-semibold"><bdi>{g.title}</bdi></span>
+              <span className="truncate text-[12.5px] text-muted">
+                {isAfter
+                  ? t.queue.playedIn(joinNames(t.locale, g.lists.map((l) => l.name)), monthYear(t.locale, g.played_at))
+                  : g.lists.map((l) => `${l.name} · ${t.common.scoredOf(l.scored_count, l.member_count)}`).join(' — ')}
+              </span>
+            </span>
+            <span className="flex shrink-0 flex-col items-end gap-0.5 sm:flex-row-reverse sm:items-center sm:gap-1">
+              <Link href={`/lists/${first.id}/games/${g.id}${isAfter ? '?played=1' : ''}`} className={btn.score}>
+                {isAfter ? t.queue.addAfter : t.queue.score}
+              </Link>
+              {isAfter && <SkipAfterButton listId={first.id} gameId={g.id} title={g.title} />}
+            </span>
+          </li>
+        )
+      })}
+    </ul>
   )
 }

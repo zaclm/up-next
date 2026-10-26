@@ -3,12 +3,14 @@
 import { useOptimistic, useTransition } from 'react'
 import { setIncludePlayed } from '@/app/actions'
 import { cx } from './ui'
+import { useT } from '@/i18n/client'
 
 /**
  * "Played games" switch on a list's Up next tab. On: games the group already played are
  * ranked together with the rest, marked "Played". Saved for you, for this list.
  */
 export function PlayedSwitch({ listId, on, count }: { listId: string; on: boolean; count: number }) {
+  const t = useT()
   const [pending, start] = useTransition()
   const [value, setValue] = useOptimistic(on)
   const toggle = () =>
@@ -32,8 +34,8 @@ export function PlayedSwitch({ listId, on, count }: { listId: string; on: boolea
         <span className={cx('size-3.5 rounded-full', value ? 'bg-ground' : 'bg-ink')} />
       </span>
       <span>
-        Include played games
-        {count > 0 && <span className="ml-1 text-muted tnum">· {count}</span>}
+        {t.board.includePlayed}
+        {count > 0 && <span className="ms-1 text-muted tnum">· {count}</span>}
       </span>
     </button>
   )

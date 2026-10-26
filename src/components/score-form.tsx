@@ -4,21 +4,24 @@ import { useState, useTransition } from 'react'
 import { saveScore } from '@/app/actions'
 import { clampScore, fmtScore, personalScore } from '@/lib/format'
 import { btn, cx } from './ui'
+import { useT } from '@/i18n/client'
 
 function ScoreSlider({
+  id,
   label,
   hint,
   value,
   onChange,
   color,
 }: {
+  id: string
   label: string
   hint: string
   value: number | null
   onChange: (v: number) => void
   color: 'hype' | 'accent'
 }) {
-  const id = `score-${label.toLowerCase()}`
+  const t = useT()
   const shown = value ?? 7
   const tone = color === 'hype' ? 'text-hype' : 'text-accent'
   return (
@@ -30,7 +33,7 @@ function ScoreSlider({
         </label>
         <button
           type="button"
-          aria-label={`Lower ${label} by 0.5`}
+          aria-label={t.scoreForm.lower(label)}
           onClick={() => onChange(clampScore(shown - 0.5))}
           className="flex size-11 items-center justify-center rounded-full bg-active text-xl hover:bg-[#343843] lg:size-9"
         >
@@ -41,7 +44,7 @@ function ScoreSlider({
         </output>
         <button
           type="button"
-          aria-label={`Raise ${label} by 0.5`}
+          aria-label={t.scoreForm.raise(label)}
           onClick={() => onChange(clampScore(shown + 0.5))}
           className="flex size-11 items-center justify-center rounded-full bg-active text-xl hover:bg-[#343843] lg:size-9"
         >
@@ -57,11 +60,11 @@ function ScoreSlider({
         value={shown}
         onChange={(e) => onChange(Number(e.target.value))}
         className={cx('h-2 w-full cursor-pointer', color === 'hype' ? 'accent-[#f2a93b]' : 'accent-[#c6f432]')}
-        aria-valuetext={value === null ? 'not set' : `${fmtScore(value)} out of 10`}
+        aria-valuetext={value === null ? t.scoreForm.notSet : t.scoreForm.outOf10(fmtScore(value))}
       />
       <div className="flex justify-between text-xs text-faint" aria-hidden>
         <span>1</span>
-        <span>half steps</span>
+        <span>{t.scoreForm.halfSteps}</span>
         <span>10</span>
       </div>
     </div>
@@ -72,7 +75,7 @@ export function ScoreForm({
   gameId,
   initial,
   startPlayed = false,
-  saveLabel = 'Save score',
+  saveLabel,
   savedNote,
 }: {
   gameId: number
@@ -81,6 +84,7 @@ export function ScoreForm({
   saveLabel?: string
   savedNote?: string
 }) {
+  const t = useT()
   const [played, setPlayed] = useState(initial.after !== null || startPlayed)
   const [before, setBefore] = useState<number | null>(initial.before)
   const [after, setAfter] = useState<number | null>(initial.after)
@@ -96,7 +100,7 @@ export function ScoreForm({
     setMessage(null)
     start(async () => {
       const res = await saveScore({ gameId, before, after: effectiveAfter, canPlay })
-      setMessage(res.ok ? { ok: true, text: savedNote ?? 'Saved.' } : { ok: false, text: res.error })
+      setMessage(res.ok ? { ok: true, text: savedNote ?? t.common.saved } : { ok: false, text: res.error })
     })
   }
 
@@ -106,37 +110,39 @@ export function ScoreForm({
   return (
     <div className="flex flex-col gap-4">
       <fieldset className="flex flex-col gap-3">
-        <legend className="mb-3 text-base font-semibold">Have you played it?</legend>
+        <legend className="mb-3 text-base font-semibold">{t.scoreForm.playedQuestion}</legend>
         <div className="grid grid-cols-2 gap-1 rounded-xl bg-surface p-1 lg:bg-ground">
           <button type="button" aria-pressed={!played} className={seg(!played)} onClick={() => setPlayed(false)}>
-            Not yet
+            {t.scoreForm.notYet}
           </button>
           <button type="button" aria-pressed={played} className={seg(played)} onClick={() => setPlayed(true)}>
-            Yes, I have
+            {t.scoreForm.yesIHave}
           </button>
         </div>
       </fieldset>
 
-      <ScoreSlider label="Before" hint="How hyped are you?" value={before} onChange={setBefore} color="hype" />
-      {played && <ScoreSlider label="After" hint="How was it really?" value={after} onChange={setAfter} color="accent" />}
+      <ScoreSlider id="score-before" label={t.scoreForm.before} hint={t.scoreForm.beforeHint} value={before} onChange={setBefore} color="hype" />
+      {played && (
+        <ScoreSlider id="score-after" label={t.scoreForm.after} hint={t.scoreForm.afterHint} value={after} onChange={setAfter} color="accent" />
+      )}
 
       <label className="flex min-h-14 cursor-pointer items-center gap-3 rounded-2xl bg-surface px-4 lg:bg-ground/40">
         <input type="checkbox" checked={canPlay} onChange={(e) => setCanPlay(e.target.checked)} className="size-5" />
         <span className="flex flex-col">
-          <span>I can play this</span>
-          <span className="text-[12.5px] text-muted">You own it or have access to it</span>
+          <span>{t.scoreForm.canPlay}</span>
+          <span className="text-[12.5px] text-muted">{t.scoreForm.canPlayHint}</span>
         </span>
       </label>
 
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4">
         <span className="flex flex-col">
           <span className="text-[12.5px] text-muted">
-            {played && before !== null && after !== null ? '30% Before + 70% After' : played ? 'Your score' : 'Hype only, until you play it'}
+            {played && before !== null && after !== null ? t.scoreForm.mix : played ? t.scoreForm.yourScore : t.scoreForm.hypeOnly}
           </span>
           <span className="font-display text-[22px] leading-7 font-bold tnum">{fmtScore(mine)}</span>
         </span>
         <button type="button" onClick={save} disabled={!ready || pending} className={btn.primary}>
-          {pending ? 'Saving…' : saveLabel}
+          {pending ? t.common.saving : (saveLabel ?? t.scoreForm.save)}
         </button>
       </div>
       {message && (

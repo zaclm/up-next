@@ -256,6 +256,23 @@ select pg_temp.check(
   and jsonb_array_length(public.list_board((select id from t_list)) -> 'played') = 1,
   'marking Helldivers 2 as played moves it to Played together; Deep Rock Galactic is up next');
 
+-- After-score reminders: Helldivers 2 was just played together; Zac only has a Before score
+select pg_temp.check(
+  (select q ->> 'kind' from jsonb_array_elements(public.score_queue()) q where q ->> 'title' = 'Helldivers 2') = 'after',
+  'Zac (Before only) is asked for his After score on Helldivers 2');
+select pg_temp.check(
+  (select q ->> 'kind' from jsonb_array_elements(public.score_queue()) q limit 1) = 'after',
+  'After-score reminders come first in the queue');
+select pg_temp.as_user('karim');
+select pg_temp.check(
+  not exists (select 1 from jsonb_array_elements(public.score_queue()) q where q ->> 'title' = 'Helldivers 2'),
+  'Karim, who already gave an After score, is not asked');
+select pg_temp.as_user('zac');
+select public.skip_after((select id from t_list), pg_temp.g('hd2'));
+select pg_temp.check(
+  not exists (select 1 from jsonb_array_elements(public.score_queue()) q where q ->> 'title' = 'Helldivers 2'),
+  '"Didn''t play" removes the reminder');
+
 -- "Played games" switch: played games join the ranking for whoever turns it on
 select pg_temp.check((public.list_board((select id from t_list)) -> 'list' ->> 'include_played')::boolean = false,
   'the Played games switch starts off');
@@ -357,6 +374,20 @@ select pg_temp.check((select (l ->> 'image_version') is null from jsonb_array_el
 select public.leave_list((select id from t_list));
 select pg_temp.check((select created_by from lists where id = (select id from t_list)) = pg_temp.uid('karim'),
   'when the creator leaves, the earliest remaining member takes over');
+
+-- Language ---------------------------------------------------------------------------
+select pg_temp.as_user('karim');
+select public.set_locale('ar');
+select pg_temp.check((select locale from profiles where id = pg_temp.uid('karim')) = 'ar',
+  'a player can save their language on their profile');
+do $$ begin
+  perform public.set_locale('xx');
+  raise exception 'FAILED: an unknown language was saved';
+exception when invalid_parameter_value then raise notice 'ok - only English, French or Arabic can be saved';
+end $$;
+select public.set_locale(null);
+select pg_temp.check((select locale from profiles where id = pg_temp.uid('karim')) is null,
+  'clearing the language goes back to the browser''s');
 
 rollback;
 \echo ALL RULE TESTS PASSED

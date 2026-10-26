@@ -3,6 +3,7 @@ import { BottomNav, Sidebar } from '@/components/nav'
 import { requireMe } from '@/lib/auth'
 import { getMyLists, getQueue } from '@/lib/data'
 import { PageSkeleton } from '@/components/skeletons'
+import { LocaleRoot } from '@/i18n/root'
 
 export const instant = false
 
@@ -25,15 +26,28 @@ async function Chrome() {
   )
 }
 
+const sidebarPlaceholder = <div className="hidden w-[248px] shrink-0 border-e border-[#1e2026] lg:block" />
+
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex min-h-dvh">
-      <Suspense fallback={<div className="hidden w-[248px] shrink-0 border-r border-[#1e2026] lg:block" />}>
-        <Chrome />
-      </Suspense>
-      <div className="min-w-0 flex-1 pb-[96px] lg:pb-0">
-        <Suspense fallback={<PageSkeleton />}>{children}</Suspense>
-      </div>
-    </div>
+    <Suspense
+      fallback={
+        <div className="flex min-h-dvh">
+          {sidebarPlaceholder}
+          <div className="min-w-0 flex-1">
+            <PageSkeleton />
+          </div>
+        </div>
+      }
+    >
+      <LocaleRoot className="flex min-h-dvh">
+        <Suspense fallback={sidebarPlaceholder}>
+          <Chrome />
+        </Suspense>
+        <div className="min-w-0 flex-1 pb-[96px] lg:pb-0">
+          <Suspense fallback={<PageSkeleton />}>{children}</Suspense>
+        </div>
+      </LocaleRoot>
+    </Suspense>
   )
 }

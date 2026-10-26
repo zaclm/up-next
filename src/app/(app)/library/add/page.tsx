@@ -5,12 +5,15 @@ import { db } from '@/lib/db'
 import { getLibrary, getMyLists, isUuid } from '@/lib/data'
 import { Icon } from '@/components/ui'
 import { AddGameForm } from '@/components/add-game-form'
+import { getT } from '@/i18n/server'
 
-export const metadata: Metadata = { title: 'Add a game' }
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await getT()).meta.addGame }
+}
 
 export default async function AddGamePage({ searchParams }: { searchParams: Promise<{ list?: string }> }) {
   const { list } = await searchParams
-  const me = await requireMe()
+  const [me, t] = await Promise.all([requireMe(), getT()])
   const [library, lists, links] = await Promise.all([
     getLibrary(),
     getMyLists(),
@@ -25,10 +28,10 @@ export default async function AddGamePage({ searchParams }: { searchParams: Prom
   return (
     <main className="mx-auto flex w-full max-w-[1100px] flex-col gap-5 px-5 pt-2 pb-10 lg:gap-6 lg:px-10 lg:pt-7">
       <header className="flex items-center gap-1">
-        <Link href="/library" aria-label="Back to library" className="-ml-3 flex size-11 items-center justify-center lg:hidden">
-          <Icon.back size={22} />
+        <Link href="/library" aria-label={t.addGame.backToLibrary} className="-ms-3 flex size-11 items-center justify-center lg:hidden">
+          <Icon.back size={22} className="rtl:-scale-x-100" />
         </Link>
-        <h1 className="font-display text-xl leading-[26px] font-bold lg:text-[28px] lg:leading-[34px]">Add a game</h1>
+        <h1 className="font-display text-xl leading-[26px] font-bold lg:text-[28px] lg:leading-[34px]">{t.addGame.title}</h1>
       </header>
       <AddGameForm
         categories={library.categories}

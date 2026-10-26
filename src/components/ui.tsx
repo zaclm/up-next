@@ -42,18 +42,18 @@ export function AvatarStack({ people, size = 26, max = 5 }: { people: { name: st
   return (
     <span className="flex" aria-label={people.map((p) => p.name).join(', ')}>
       {shown.map((p, i) => (
-        <span key={p.name + i} style={{ marginLeft: i ? -8 : 0 }}>
+        <span key={p.name + i} style={{ marginInlineStart: i ? -8 : 0 }}>
           <Avatar name={p.name} hue={p.hue} url={p.avatar_url} size={size} ring="var(--color-ground)" />
         </span>
       ))}
       {people.length > max && (
-        <span className="ml-1 self-center text-xs text-muted">+{people.length - max}</span>
+        <span className="ms-1 self-center text-xs text-muted">+{people.length - max}</span>
       )}
     </span>
   )
 }
 
-export function Tag({ kind }: { kind: 'played' | 'hype' }) {
+export function Tag({ kind, label }: { kind: 'played' | 'hype'; label: string }) {
   return (
     <span
       className={cx(
@@ -61,7 +61,7 @@ export function Tag({ kind }: { kind: 'played' | 'hype' }) {
         kind === 'played' ? 'bg-accent-tint text-accent' : 'bg-hype-tint text-hype',
       )}
     >
-      {kind === 'played' ? 'Played' : 'Hype'}
+      {label}
     </span>
   )
 }

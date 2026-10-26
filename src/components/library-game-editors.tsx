@@ -5,6 +5,7 @@ import { addGamesToLists, removeFromLibrary, setGameCategories } from '@/app/act
 import { CategoryPicker } from './category-picker'
 import { ConfirmAction } from './list-actions'
 import { btn, cx } from './ui'
+import { useT } from '@/i18n/client'
 
 export function CategoryEditor({
   gameId,
@@ -15,6 +16,7 @@ export function CategoryEditor({
   categories: { id: number; name: string }[]
   initial: number[]
 }) {
+  const t = useT()
   const [ids, setIds] = useState(initial)
   const [names, setNames] = useState<string[]>([])
   const [pending, start] = useTransition()
@@ -31,12 +33,12 @@ export function CategoryEditor({
           onClick={() =>
             start(async () => {
               const res = await setGameCategories(gameId, ids, names)
-              setMsg(res.ok ? { ok: true, text: 'Categories saved. Linked lists get the game automatically.' } : { ok: false, text: res.error })
+              setMsg(res.ok ? { ok: true, text: t.libraryGame.catsSaved } : { ok: false, text: res.error })
               if (res.ok) setNames([])
             })
           }
         >
-          {pending ? 'Saving…' : 'Save categories'}
+          {pending ? t.common.saving : t.libraryGame.saveCats}
         </button>
         {msg && <span className={cx('text-[13px]', msg.ok ? 'text-accent' : 'text-danger')}>{msg.text}</span>}
       </div>
@@ -53,6 +55,7 @@ export function ListsEditor({
   inLists: string[]
   lists: { id: string; name: string; member_count: number }[]
 }) {
+  const t = useT()
   const [chosen, setChosen] = useState<string[]>([])
   const [pending, start] = useTransition()
   const [msg, setMsg] = useState<string | null>(null)
@@ -60,7 +63,7 @@ export function ListsEditor({
   return (
     <div className="flex flex-col gap-3">
       {open.length === 0 ? (
-        <p className="text-[13px] text-muted">It&apos;s in all of your lists.</p>
+        <p className="text-[13px] text-muted">{t.libraryGame.inAll}</p>
       ) : (
         <>
           <div className="flex flex-col rounded-2xl bg-surface py-1">
@@ -74,7 +77,7 @@ export function ListsEditor({
                 />
                 <span className="flex flex-col">
                   <span>{l.name}</span>
-                  <span className="text-[12.5px] text-muted">{l.member_count} members</span>
+                  <span className="text-[12.5px] text-muted">{t.common.members(l.member_count)}</span>
                 </span>
               </label>
             ))}
@@ -86,12 +89,12 @@ export function ListsEditor({
             onClick={() =>
               start(async () => {
                 const res = await addGamesToLists([gameId], chosen)
-                setMsg(res.ok ? 'Added.' : res.error)
+                setMsg(res.ok ? t.libraryGame.added : res.error)
                 if (res.ok) setChosen([])
               })
             }
           >
-            {pending ? 'Adding…' : chosen.length ? `Add to ${chosen.length === 1 ? '1 list' : `${chosen.length} lists`}` : 'Choose a list'}
+            {pending ? t.common.adding : chosen.length ? t.common.addToLists(chosen.length) : t.common.chooseList}
           </button>
         </>
       )}
@@ -101,10 +104,11 @@ export function ListsEditor({
 }
 
 export function RemoveFromLibraryButton({ gameId }: { gameId: number }) {
+  const t = useT()
   return (
     <ConfirmAction
-      label="Remove from my library"
-      confirmLabel="Yes, remove my score"
+      label={t.libraryGame.remove}
+      confirmLabel={t.libraryGame.yesRemove}
       tone="danger"
       run={async () => {
         const res = await removeFromLibrary(gameId)

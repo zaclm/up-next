@@ -4,8 +4,10 @@ import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { setListGameStatus, removeListGame, leaveList } from '@/app/actions'
 import { btn, cx } from './ui'
+import { useT } from '@/i18n/client'
 
 export function MarkPlayedButton({ listId, gameId, className }: { listId: string; gameId: number; className?: string }) {
+  const t = useT()
   const [pending, start] = useTransition()
   const [error, setError] = useState<string | null>(null)
   const router = useRouter()
@@ -23,7 +25,7 @@ export function MarkPlayedButton({ listId, gameId, className }: { listId: string
           })
         }
       >
-        {pending ? 'Saving…' : 'We played it together'}
+        {pending ? t.common.saving : t.board.weplayedIt}
       </button>
       {error && <span role="alert" className="text-[13px] text-danger">{error}</span>}
     </span>
@@ -44,6 +46,7 @@ export function ConfirmAction({
   tone?: 'secondary' | 'danger' | 'outline'
   className?: string
 }) {
+  const t = useT()
   const [armed, setArmed] = useState(false)
   const [pending, start] = useTransition()
   const [error, setError] = useState<string | null>(null)
@@ -63,15 +66,15 @@ export function ConfirmAction({
               onClick={() =>
                 start(async () => {
                   const res = await run()
-                  if (res && !res.ok) setError(res.error ?? 'Something went wrong.')
+                  if (res && !res.ok) setError(res.error ?? t.common.somethingWrong)
                   setArmed(false)
                 })
               }
             >
-              {pending ? 'Working…' : confirmLabel}
+              {pending ? t.common.working : confirmLabel}
             </button>
             <button type="button" className={btn.ghost} onClick={() => setArmed(false)}>
-              Cancel
+              {t.common.cancel}
             </button>
           </>
         )}
@@ -100,10 +103,11 @@ export function StatusButton({
 }
 
 export function RemoveFromListButton({ listId, gameId }: { listId: string; gameId: number }) {
+  const t = useT()
   return (
     <ConfirmAction
-      label="Remove from list"
-      confirmLabel="Yes, remove it"
+      label={t.actions.removeFromList}
+      confirmLabel={t.actions.yesRemove}
       tone="danger"
       run={async () => {
         const res = await removeListGame(listId, gameId)
@@ -114,10 +118,11 @@ export function RemoveFromListButton({ listId, gameId }: { listId: string; gameI
 }
 
 export function LeaveListButton({ listId, name }: { listId: string; name: string }) {
+  const t = useT()
   return (
     <ConfirmAction
-      label={`Leave ${name}`}
-      confirmLabel="Yes, leave"
+      label={t.actions.leave(name)}
+      confirmLabel={t.actions.yesLeave}
       tone="danger"
       run={async () => {
         const res = await leaveList(listId)

@@ -3,41 +3,44 @@
 import { useActionState, useState, useTransition } from 'react'
 import { createList, joinList, newInvite, updateList, linkCategory, unlinkCategory } from '@/app/actions'
 import { Icon, btn, cx } from './ui'
+import { useT } from '@/i18n/client'
 
 const field =
   'min-h-12 w-full rounded-xl bg-surface px-4 text-[15px] text-ink placeholder:text-faint shadow-[inset_0_0_0_1px_var(--color-active)] outline-none focus:shadow-[inset_0_0_0_1px_var(--color-accent)] lg:min-h-10 lg:rounded-lg lg:text-sm'
 
 export function CreateListForm() {
+  const t = useT()
   return (
     <form action={createList} className="flex flex-col gap-2 sm:flex-row" id="new">
       <label htmlFor="new-list" className="sr-only">
-        List name
+        {t.lists.listName}
       </label>
-      <input id="new-list" name="name" required maxLength={40} placeholder="Name a new list, e.g. Friday Squad" className={field} />
-      <button className={cx(btn.primary, 'shrink-0')}>Create list</button>
+      <input id="new-list" name="name" required maxLength={40} placeholder={t.lists.newListPlaceholder} className={field} />
+      <button className={cx(btn.primary, 'shrink-0')}>{t.lists.createList}</button>
     </form>
   )
 }
 
 export function JoinListForm({ defaultCode = '' }: { defaultCode?: string }) {
   const [state, action, pending] = useActionState(async (_: unknown, fd: FormData) => joinList(fd), null)
+  const t = useT()
   return (
     <form action={action} className="flex flex-col gap-2" id="join">
       <div className="flex flex-col gap-2 sm:flex-row">
         <label htmlFor="join-code" className="sr-only">
-          Invite code
+          {t.lists.inviteCode}
         </label>
         <input
           id="join-code"
           name="code"
           required
           defaultValue={defaultCode}
-          placeholder="Invite code, e.g. SQDN-4821"
+          placeholder={t.lists.invitePlaceholder}
           autoCapitalize="characters"
           className={cx(field, 'font-display tracking-wider uppercase placeholder:normal-case placeholder:tracking-normal')}
         />
         <button className={cx(btn.secondary, 'shrink-0')} disabled={pending}>
-          {pending ? 'Joining…' : 'Join'}
+          {pending ? t.lists.joining : t.lists.join}
         </button>
       </div>
       {state && !state.ok && (
@@ -52,6 +55,7 @@ export function JoinListForm({ defaultCode = '' }: { defaultCode?: string }) {
 export function InviteBox({ listId, code, canReset }: { listId: string; code: string; canReset: boolean }) {
   const [copied, setCopied] = useState<'link' | 'code' | null>(null)
   const [pending, start] = useTransition()
+  const t = useT()
   async function copy(what: 'link' | 'code') {
     try {
       await navigator.clipboard.writeText(what === 'link' ? `${window.location.origin}/join/${code}` : code)
@@ -70,15 +74,15 @@ export function InviteBox({ listId, code, canReset }: { listId: string; code: st
         <div className="grid grid-cols-2 gap-2 sm:flex">
           <button type="button" onClick={() => copy('link')} className={cx(btn.primary, 'shrink-0')} aria-live="polite">
             <Icon.link size={16} />
-            {copied === 'link' ? 'Link copied' : 'Copy link'}
+            {copied === 'link' ? t.invite.linkCopied : t.invite.copyLink}
           </button>
           <button type="button" onClick={() => copy('code')} className={cx(btn.secondary, 'shrink-0')} aria-live="polite">
             <Icon.copy size={16} />
-            {copied === 'code' ? 'Code copied' : 'Copy code'}
+            {copied === 'code' ? t.invite.codeCopied : t.invite.copyCode}
           </button>
         </div>
       </div>
-      <p className="text-[12.5px] text-muted">Send the link to open the list straight away, or the code to type in Lists → Join. Their library scores fill in as soon as they join.</p>
+      <p className="text-[12.5px] text-muted">{t.invite.help}</p>
       <div className="flex flex-wrap gap-x-5 gap-y-1 text-[13px]">
         {canReset && (
           <button
@@ -87,7 +91,7 @@ export function InviteBox({ listId, code, canReset }: { listId: string; code: st
             onClick={() => start(async () => void (await newInvite(listId)))}
             className="min-h-9 text-muted underline-offset-4 hover:text-ink hover:underline"
           >
-            {pending ? 'Making a new code…' : 'Make a new code (the old one stops working)'}
+            {pending ? t.invite.makingCode : t.invite.newCode}
           </button>
         )}
       </div>
@@ -99,13 +103,14 @@ export function PlayableSwitch({ listId, value, disabled }: { listId: string; va
   const [on, setOn] = useState(value)
   const [pending, start] = useTransition()
   const [error, setError] = useState<string | null>(null)
+  const t = useT()
   return (
     <div className="flex flex-col gap-1">
       <button
         type="button"
         role="switch"
         aria-checked={on}
-        aria-label="Only rank games everyone can play"
+        aria-label={t.settings.onlyPlayable}
         disabled={disabled || pending}
         onClick={() => {
           const next = !on
@@ -131,6 +136,7 @@ export function RenameList({ listId, name }: { listId: string; name: string }) {
   const [pending, start] = useTransition()
   const [value, setValue] = useState(name)
   const [msg, setMsg] = useState<string | null>(null)
+  const t = useT()
   return (
     <form
       className="flex flex-col gap-2 sm:flex-row"
@@ -138,16 +144,16 @@ export function RenameList({ listId, name }: { listId: string; name: string }) {
         e.preventDefault()
         start(async () => {
           const res = await updateList(listId, value, null)
-          setMsg(res.ok ? 'Saved.' : res.error)
+          setMsg(res.ok ? t.common.saved : res.error)
         })
       }}
     >
       <label htmlFor="list-name" className="sr-only">
-        List name
+        {t.lists.listName}
       </label>
       <input id="list-name" value={value} onChange={(e) => setValue(e.target.value)} maxLength={40} className={field} />
       <button className={cx(btn.secondary, 'shrink-0')} disabled={pending || !value.trim() || value === name}>
-        Rename
+        {t.settings.rename}
       </button>
       {msg && <span className="self-center text-[13px] text-muted">{msg}</span>}
     </form>
@@ -163,9 +169,10 @@ export function LinkCategoryControl({
 }) {
   const [pending, start] = useTransition()
   const [msg, setMsg] = useState<string | null>(null)
+  const t = useT()
   const available = mine.filter((c) => !c.linked)
   if (mine.length === 0) {
-    return <p className="text-[13px] text-muted">Make categories in your library (like Co-op or Horror) to link them here.</p>
+    return <p className="text-[13px] text-muted">{t.settings.linkHint}</p>
   }
   return (
     <div className="flex flex-col gap-2">
@@ -179,9 +186,9 @@ export function LinkCategoryControl({
               disabled={pending}
               onClick={() => start(async () => void (await unlinkCategory(listId, c.id)))}
               className="flex min-h-9 items-center gap-2 rounded-full bg-active px-3.5 text-[13.5px]"
-              aria-label={`Unlink ${c.name}`}
+              aria-label={t.settings.unlink(c.name)}
             >
-              {c.name} <span className="text-muted">· unlink</span>
+              {c.name} <span className="text-muted">{t.settings.unlinkWord}</span>
             </button>
           ))}
       </div>
@@ -193,22 +200,22 @@ export function LinkCategoryControl({
             const id = Number(new FormData(e.currentTarget).get('category'))
             start(async () => {
               const res = await linkCategory(listId, id)
-              setMsg(res.ok ? `Linked. ${res.data} game${res.data === 1 ? '' : 's'} added.` : res.error)
+              setMsg(res.ok ? t.settings.linked(res.data) : res.error)
             })
           }}
         >
           <label htmlFor="link-cat" className="sr-only">
-            Category to link
+            {t.settings.categoryToLink}
           </label>
           <select id="link-cat" name="category" className={field}>
             {available.map((c) => (
               <option key={c.id} value={c.id}>
-                {c.name} ({c.count} games)
+                {t.settings.categoryOption(c.name, c.count)}
               </option>
             ))}
           </select>
           <button className={cx(btn.secondary, 'shrink-0')} disabled={pending}>
-            Link category
+            {t.settings.linkCategory}
           </button>
         </form>
       )}

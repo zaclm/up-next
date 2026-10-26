@@ -1,4 +1,7 @@
+'use client'
+
 import { cx } from './ui'
+import { useT } from '@/i18n/client'
 
 // A list's picture: the one its members chose, or a steady coloured tile with its initials.
 // It never changes on its own when games are added.
@@ -66,14 +69,15 @@ export function ListIcon({
 }
 
 export function NewDot({ count, className }: { count: number; className?: string }) {
-  const label = count === 1 ? '1 new game' : `${count} new games`
+  const t = useT()
+  const label = t.common.newGames(count)
   return (
     <span
       role="status"
       aria-label={label}
       title={label}
       className={cx(
-        'absolute -top-1.5 -right-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#ef4444] px-1 text-[11px] leading-none font-bold text-white ring-2 ring-ground',
+        'absolute -top-1.5 -end-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#ef4444] px-1 text-[11px] leading-none font-bold text-white ring-2 ring-ground',
         className,
       )}
     >

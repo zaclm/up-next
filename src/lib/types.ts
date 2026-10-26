@@ -133,6 +133,9 @@ export type QueueItem = {
   title: string
   cover_url: string | null
   genres: string[]
+  /** "after": played together, your After score is missing. "score": not scored at all. */
+  kind: 'after' | 'score'
+  played_at: string | null
   lists: { id: string; name: string; added_by_name: string | null; scored_count: number; member_count: number }[]
 }
 

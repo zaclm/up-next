@@ -7,6 +7,7 @@ import { clampScore, fmtScore } from '@/lib/format'
 import type { CatalogResult } from '@/lib/types'
 import { CategoryPicker } from './category-picker'
 import { Cover, Icon, btn, cx } from './ui'
+import { useT } from '@/i18n/client'
 
 type ListOption = { id: string; name: string; member_count: number; linked_category_ids: number[] }
 
@@ -21,6 +22,7 @@ export function AddGameForm({
   preselectList: string | null
   ownedIds: number[]
 }) {
+  const t = useT()
   const router = useRouter()
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<CatalogResult[]>([])
@@ -113,11 +115,11 @@ export function AddGameForm({
     <div className="flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:items-start lg:gap-8">
       <section aria-labelledby="find-h" className="flex flex-col gap-3">
         <h2 id="find-h" className="text-base font-semibold">
-          Find the game
+          {t.addGame.find}
         </h2>
         <label className="flex min-h-12 items-center gap-3 rounded-xl bg-surface px-4 shadow-[inset_0_0_0_1px_var(--color-active)] focus-within:shadow-[inset_0_0_0_1px_var(--color-accent)] lg:min-h-10">
           <Icon.search size={18} className="text-muted" />
-          <span className="sr-only">Search games</span>
+          <span className="sr-only">{t.addGame.search}</span>
           <input
             type="search"
             autoFocus
@@ -126,13 +128,13 @@ export function AddGameForm({
               setQuery(e.target.value)
               setPick(null)
             }}
-            placeholder="Search games"
+            placeholder={t.addGame.search}
             className="min-w-0 flex-1 bg-transparent text-[15px] placeholder:text-faint focus:outline-none"
           />
-          {searching && <span className="text-xs text-muted">Searching…</span>}
+          {searching && <span className="text-xs text-muted">{t.addGame.searching}</span>}
         </label>
         {(results.length > 0 || manual) && (
-          <ul className="flex flex-col rounded-2xl bg-surface py-1" aria-label="Search results">
+          <ul className="flex flex-col rounded-2xl bg-surface py-1" aria-label={t.addGame.results}>
             {[...results, ...(manual ? [manual] : [])].map((r, i) => {
               const owned = r.game_id !== null && ownedIds.includes(r.game_id)
               const on = pick?.key === r.key
@@ -143,7 +145,7 @@ export function AddGameForm({
                     aria-pressed={on}
                     disabled={owned}
                     onClick={() => setPick(r)}
-                    className={cx('flex w-full items-center gap-3 px-4 py-3 text-left', on && 'bg-accent-tint/60', owned && 'opacity-60')}
+                    className={cx('flex w-full items-center gap-3 px-4 py-3 text-start', on && 'bg-accent-tint/60', owned && 'opacity-60')}
                   >
                     {r.key === 'manual' ? (
                       <span className="flex aspect-[3/4] w-[42px] shrink-0 items-center justify-center rounded-md border border-dashed border-line-strong text-muted">
@@ -153,20 +155,20 @@ export function AddGameForm({
                       <Cover src={r.cover_url} fallback={r.cover_fallback} title={r.title} className="w-[42px] shrink-0 rounded-md" />
                     )}
                     <span className="flex min-w-0 flex-1 flex-col">
-                      <span className="truncate font-semibold">{r.key === 'manual' ? `Add “${r.title}” by name` : r.title}</span>
+                      <span className="truncate font-semibold">{r.key === 'manual' ? t.addGame.addByName(r.title) : <bdi>{r.title}</bdi>}</span>
                       <span className="truncate text-[12.5px] text-muted">
                         {owned
-                          ? 'Already in your library'
+                          ? t.addGame.alreadyIn
                           : r.key === 'manual'
-                            ? 'Not listed? Add it without a cover'
+                            ? t.addGame.notListed
                             : [
-                                r.players > 0 ? (r.players === 1 ? '1 player in Up Next' : `${r.players} players in Up Next`) : null,
+                                r.players > 0 ? t.addGame.players(r.players) : null,
                                 r.release_year,
                                 r.genres.slice(0, 2).join(', '),
-                                r.source === 'steam' && !r.genres.length ? 'On Steam' : null,
+                                r.source === 'steam' && !r.genres.length ? t.addGame.onSteam : null,
                               ]
                                 .filter(Boolean)
-                                .join(' · ') || 'Game'}
+                                .join(' · ') || t.addGame.game}
                       </span>
                     </span>
                     {on && <Icon.check size={20} className="shrink-0 text-accent" />}
@@ -177,29 +179,27 @@ export function AddGameForm({
           </ul>
         )}
         <p className="text-xs text-muted">
-          {igdbOn
-            ? 'Searches Steam, IGDB and games your friends already added. Typos are fine.'
-            : 'Searches Steam and games your friends already added. Typos are fine.'}
+          {igdbOn ? t.addGame.footIgdb : t.addGame.footNoIgdb}
         </p>
       </section>
 
       <section aria-labelledby="take-h" className={cx('flex flex-col gap-4', !pick && 'pointer-events-none opacity-40')} aria-disabled={!pick}>
         <h2 id="take-h" className="text-base font-semibold">
-          {pick ? `Your take on ${pick.title}` : 'Your take'}
+          {pick ? t.addGame.yourTakeOn(pick.title) : t.addGame.yourTake}
         </h2>
         <div className="flex flex-col rounded-2xl bg-surface">
           <div className="flex items-center gap-3 p-4">
             <span className="flex flex-1 flex-col">
-              <span className="font-semibold">Before score</span>
-              <span className="text-[12.5px] text-muted">How hyped are you? Add After once you&apos;ve played.</span>
+              <span className="font-semibold">{t.addGame.beforeScore}</span>
+              <span className="text-[12.5px] text-muted">{t.addGame.beforeHint}</span>
             </span>
-            <button type="button" aria-label="Lower Before score by 0.5" onClick={() => setBefore(clampScore(before - 0.5))} className="flex size-11 items-center justify-center rounded-full bg-active text-xl lg:size-9">
+            <button type="button" aria-label={t.addGame.lower} onClick={() => setBefore(clampScore(before - 0.5))} className="flex size-11 items-center justify-center rounded-full bg-active text-xl lg:size-9">
               −
             </button>
             <output aria-live="polite" className="w-12 text-center font-display text-[26px] font-bold text-hype tnum">
               {fmtScore(before)}
             </output>
-            <button type="button" aria-label="Raise Before score by 0.5" onClick={() => setBefore(clampScore(before + 0.5))} className="flex size-11 items-center justify-center rounded-full bg-active text-xl lg:size-9">
+            <button type="button" aria-label={t.addGame.raise} onClick={() => setBefore(clampScore(before + 0.5))} className="flex size-11 items-center justify-center rounded-full bg-active text-xl lg:size-9">
               +
             </button>
           </div>
@@ -211,23 +211,23 @@ export function AddGameForm({
               step={0.5}
               value={before}
               onChange={(e) => setBefore(Number(e.target.value))}
-              aria-label="Before score"
+              aria-label={t.addGame.beforeScore}
               className="h-2 w-full accent-[#f2a93b]"
             />
           </div>
           <label className="flex min-h-[52px] cursor-pointer items-center gap-3 border-t border-line px-4">
             <input type="checkbox" className="size-5" checked={canPlay} onChange={(e) => setCanPlay(e.target.checked)} />
-            I can play this
+            {t.scoreForm.canPlay}
           </label>
           <div className="flex flex-col gap-3 border-t border-line p-4">
-            <span className="text-[13px] text-muted">Categories</span>
+            <span className="text-[13px] text-muted">{t.libraryGame.categories}</span>
             <CategoryPicker categories={categories} selected={catIds} onChange={setCatIds} newNames={newCats} onNewNames={setNewCats} />
           </div>
         </div>
 
         {lists.length > 0 && (
           <div className="flex flex-col gap-3">
-            <h3 className="text-base font-semibold">Also add to</h3>
+            <h3 className="text-base font-semibold">{t.addGame.alsoAddTo}</h3>
             <div className="flex flex-col rounded-2xl bg-surface py-1">
               {lists.map((l, i) => {
                 const auto = autoLists.includes(l.id)
@@ -242,7 +242,7 @@ export function AddGameForm({
                     />
                     <span className="flex flex-col">
                       <span>{l.name}</span>
-                      <span className="text-[12.5px] text-muted">{auto ? 'Gets it anyway: one of its categories is linked' : `${l.member_count} members`}</span>
+                      <span className="text-[12.5px] text-muted">{auto ? t.addGame.autoLinked : t.common.members(l.member_count)}</span>
                     </span>
                   </label>
                 )
@@ -257,7 +257,7 @@ export function AddGameForm({
           </p>
         )}
         <button type="button" disabled={!pick || pending} onClick={submit} className={cx(btn.primary, 'w-full lg:w-auto lg:self-start')}>
-          {pending ? 'Adding…' : 'Add to library'}
+          {pending ? t.common.adding : t.addGame.addToLibrary}
         </button>
       </section>
     </div>

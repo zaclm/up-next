@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useTransition } from 'react'
 import { clearListImage, markListSeen, setListImage } from '@/app/actions'
 import { ListIcon } from './list-icon'
 import { Icon, btn, cx } from './ui'
+import { useT } from '@/i18n/client'
 
 /** Crops the middle square of a photo and shrinks it, so uploads stay small and fast. */
 async function squareImage(file: File, size = 320): Promise<Blob> {
@@ -30,6 +31,7 @@ async function squareImage(file: File, size = 320): Promise<Blob> {
 }
 
 export function ListPictureEditor({ listId, name, version }: { listId: string; name: string; version: number | null }) {
+  const t = useT()
   const input = useRef<HTMLInputElement>(null)
   const [pending, start] = useTransition()
   const [error, setError] = useState<string | null>(null)
@@ -42,7 +44,7 @@ export function ListPictureEditor({ listId, name, version }: { listId: string; n
       try {
         blob = await squareImage(file)
       } catch {
-        setError('That file doesn’t look like a picture. Try a JPG or PNG.')
+        setError(t.settings.notAPicture)
         return
       }
       const fd = new FormData()
@@ -59,7 +61,7 @@ export function ListPictureEditor({ listId, name, version }: { listId: string; n
         <div className="flex flex-wrap gap-2">
           <button type="button" className={btn.secondary} disabled={pending} onClick={() => input.current?.click()}>
             <Icon.image size={18} />
-            {pending ? 'Saving…' : version ? 'Change picture' : 'Choose picture'}
+            {pending ? t.common.saving : version ? t.settings.changePicture : t.settings.choosePicture}
           </button>
           {version && (
             <button
@@ -73,11 +75,11 @@ export function ListPictureEditor({ listId, name, version }: { listId: string; n
                 })
               }
             >
-              Remove
+              {t.settings.removePicture}
             </button>
           )}
         </div>
-        <p className="text-[12.5px] text-muted">Shows next to the list everywhere. Anyone in the list can change it.</p>
+        <p className="text-[12.5px] text-muted">{t.settings.pictureNote}</p>
         {error && (
           <p role="alert" className="text-[13px] text-danger">
             {error}

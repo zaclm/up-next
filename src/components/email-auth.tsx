@@ -3,11 +3,13 @@
 import { useActionState, useState } from 'react'
 import { signInWithPassword, signUpWithPassword } from '@/app/actions'
 import { btn, cx } from './ui'
+import { useT } from '@/i18n/client'
 
 const field =
   'min-h-12 w-full rounded-xl bg-ground px-4 text-[15px] text-ink placeholder:text-faint shadow-[inset_0_0_0_1px_var(--color-active)] outline-none focus:shadow-[inset_0_0_0_1px_var(--color-accent)]'
 
 export function EmailAuth({ next }: { next: string }) {
+  const t = useT()
   const [mode, setMode] = useState<'in' | 'up'>('in')
   const [inState, signIn, inPending] = useActionState(signInWithPassword, null)
   const [upState, signUp, upPending] = useActionState(signUpWithPassword, null)
@@ -19,16 +21,16 @@ export function EmailAuth({ next }: { next: string }) {
       <input type="hidden" name="next" value={next} />
       {mode === 'up' && (
         <label className="flex flex-col gap-2">
-          <span className="text-sm font-medium">Your name</span>
-          <input name="name" required maxLength={40} autoComplete="nickname" placeholder="What friends call you" className={field} />
+          <span className="text-sm font-medium">{t.login.yourName}</span>
+          <input name="name" required maxLength={40} autoComplete="nickname" placeholder={t.login.namePlaceholder} className={field} />
         </label>
       )}
       <label className="flex flex-col gap-2">
-        <span className="text-sm font-medium">Email</span>
-        <input name="email" type="email" required autoComplete="email" className={field} />
+        <span className="text-sm font-medium">{t.login.email}</span>
+        <input name="email" type="email" required autoComplete="email" dir="ltr" className={cx(field, 'text-start rtl:text-end')} />
       </label>
       <label className="flex flex-col gap-2">
-        <span className="text-sm font-medium">Password</span>
+        <span className="text-sm font-medium">{t.login.password}</span>
         <input
           name="password"
           type="password"
@@ -44,10 +46,10 @@ export function EmailAuth({ next }: { next: string }) {
         </p>
       )}
       <button className={cx(btn.primary, 'mt-1 w-full')} disabled={pending}>
-        {pending ? 'One moment…' : mode === 'in' ? 'Sign in' : 'Create account'}
+        {pending ? t.common.oneMoment : mode === 'in' ? t.login.signIn : t.login.createAccount}
       </button>
       <button type="button" onClick={() => setMode(mode === 'in' ? 'up' : 'in')} className={cx(btn.ghost, 'w-full')}>
-        {mode === 'in' ? 'New here? Create an account' : 'Already have an account? Sign in'}
+        {mode === 'in' ? t.login.toSignUp : t.login.toSignIn}
       </button>
     </form>
   )
