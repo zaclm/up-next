@@ -2,7 +2,7 @@
 
 import { useActionState, useState, useTransition } from 'react'
 import { createList, joinList, newInvite, updateList, linkCategory, unlinkCategory } from '@/app/actions'
-import { btn, cx } from './ui'
+import { Icon, btn, cx } from './ui'
 
 const field =
   'min-h-12 w-full rounded-xl bg-surface px-4 text-[15px] text-ink placeholder:text-faint shadow-[inset_0_0_0_1px_var(--color-active)] outline-none focus:shadow-[inset_0_0_0_1px_var(--color-accent)] lg:min-h-10 lg:rounded-lg lg:text-sm'
@@ -63,19 +63,23 @@ export function InviteBox({ listId, code, canReset }: { listId: string; code: st
   }
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex gap-2">
+      <div className="flex flex-col gap-2 sm:flex-row">
         <span className="flex min-h-12 flex-1 items-center rounded-xl bg-surface px-4 font-display text-lg font-semibold tracking-[0.08em] lg:min-h-10">
           {code}
         </span>
-        <button type="button" onClick={() => copy('link')} className={cx(btn.primary, 'shrink-0')}>
-          {copied === 'link' ? 'Copied' : 'Copy link'}
-        </button>
+        <div className="grid grid-cols-2 gap-2 sm:flex">
+          <button type="button" onClick={() => copy('link')} className={cx(btn.primary, 'shrink-0')} aria-live="polite">
+            <Icon.link size={16} />
+            {copied === 'link' ? 'Link copied' : 'Copy link'}
+          </button>
+          <button type="button" onClick={() => copy('code')} className={cx(btn.secondary, 'shrink-0')} aria-live="polite">
+            <Icon.copy size={16} />
+            {copied === 'code' ? 'Code copied' : 'Copy code'}
+          </button>
+        </div>
       </div>
-      <p className="text-[12.5px] text-muted">Friends open the link or type the code in Lists. Their library scores fill in as soon as they join.</p>
+      <p className="text-[12.5px] text-muted">Send the link to open the list straight away, or the code to type in Lists → Join. Their library scores fill in as soon as they join.</p>
       <div className="flex flex-wrap gap-x-5 gap-y-1 text-[13px]">
-        <button type="button" onClick={() => copy('code')} className="min-h-9 text-ink underline-offset-4 hover:underline">
-          {copied === 'code' ? 'Code copied' : 'Copy code only'}
-        </button>
         {canReset && (
           <button
             type="button"

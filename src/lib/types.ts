@@ -22,6 +22,8 @@ export type BoardCard = {
   added_by_name: string | null
   added_at: string
   played_at: string | null
+  /** Added by someone else since you last opened this list. */
+  is_new: boolean
   scored_count: number
   member_count: number
   needed: number
@@ -43,6 +45,8 @@ export type ListInfo = {
   is_creator: boolean
   member_count: number
   needed: number
+  /** Changes whenever the list picture changes; null means the default picture. */
+  image_version: number | null
 }
 
 export type Member = {
@@ -82,7 +86,9 @@ export type ListSummary = {
   members: Member[]
   needs_score: number
   next: BoardCard | null
-  covers: (string | null)[]
+  image_version: number | null
+  /** Games friends added since you last opened the list. */
+  new_count: number
 }
 
 export type GameMember = {
@@ -149,9 +155,15 @@ export type Library = {
 export type CatalogResult = {
   key: string
   igdb_id: number | null
+  steam_appid: number | null
   game_id: number | null
   title: string
   cover_url: string | null
+  /** Shown if cover_url fails to load (Steam has no tall cover for some games). */
+  cover_fallback: string | null
   genres: string[]
   release_year: number | null
+  /** Players in Up Next who have this game (only for games already in Up Next). */
+  players: number
+  source: 'upnext' | 'steam' | 'igdb'
 }

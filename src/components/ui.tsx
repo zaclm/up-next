@@ -4,44 +4,7 @@ export function cx(...parts: (string | false | null | undefined)[]) {
   return parts.filter(Boolean).join(' ')
 }
 
-const FALLBACK_TINTS = ['#2a3a33', '#3a2a44', '#2a3a4a', '#4a3a26', '#3b4a2a', '#43292b', '#22383f', '#33302a']
-
-/** Game cover in 3:4, or the title's initials on a tint when there is no art. */
-export function Cover({
-  src,
-  title,
-  className,
-  alt = '',
-}: {
-  src: string | null | undefined
-  title: string
-  className?: string
-  alt?: string
-}) {
-  if (src) {
-    // eslint-disable-next-line @next/next/no-img-element
-    return <img src={src} alt={alt} loading="lazy" className={cx('block aspect-[3/4] object-cover bg-raised', className)} />
-  }
-  const initials = title
-    .replace(/[^A-Za-z0-9 ]/g, '')
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((w) => w[0]!.toUpperCase())
-    .join('')
-  const tint = FALLBACK_TINTS[[...title].reduce((a, c) => a + c.charCodeAt(0), 0) % FALLBACK_TINTS.length]
-  return (
-    <span
-      role={alt ? 'img' : undefined}
-      aria-label={alt || undefined}
-      aria-hidden={alt ? undefined : true}
-      className={cx('flex aspect-[3/4] items-center justify-center font-display font-bold text-ink', className)}
-      style={{ background: tint }}
-    >
-      {initials || '?'}
-    </span>
-  )
-}
+export { Cover } from './cover'
 
 export function Avatar({
   name,
@@ -122,6 +85,9 @@ export const btn = {
     'inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-accent px-4 font-semibold text-ground transition-colors hover:bg-accent-hover disabled:bg-active disabled:text-muted lg:min-h-10 lg:rounded-[10px]',
   secondary:
     'inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-active px-4 font-medium text-ink transition-colors hover:bg-[#343843] disabled:text-muted lg:min-h-10 lg:rounded-[10px]',
+  // The "Score" call to action in lists of games: same look on every row, readable on dark.
+  score:
+    'inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl bg-accent-tint px-4 font-semibold text-accent transition-colors hover:bg-accent hover:text-ground lg:min-h-9 lg:rounded-[10px]',
   outline:
     'inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-line-strong px-4 font-medium text-ink transition-colors hover:bg-surface lg:min-h-9 lg:rounded-lg',
   ghost: 'inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-3 text-muted transition-colors hover:text-ink lg:min-h-9',
@@ -217,6 +183,19 @@ export const Icon = {
     <>
       <path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1" />
       <path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1" />
+    </>,
+  ),
+  copy: icon(
+    <>
+      <rect x="9" y="9" width="11" height="11" rx="2" />
+      <path d="M5 15V6a2 2 0 0 1 2-2h9" />
+    </>,
+  ),
+  image: icon(
+    <>
+      <rect x="3.5" y="4.5" width="17" height="15" rx="2.5" />
+      <circle cx="9" cy="10" r="1.6" />
+      <path d="M20.5 16l-5-5-8.5 8.5" />
     </>,
   ),
 }

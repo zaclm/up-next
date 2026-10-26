@@ -5,6 +5,12 @@ import type { Board, BoardCard } from '@/lib/types'
 import { fmtScore, listNames, plural, shortDate } from '@/lib/format'
 import { Avatar, AvatarStack, Cover, Icon, SectionHeading, btn, card, cx } from '@/components/ui'
 import { MarkPlayedButton } from '@/components/list-actions'
+import { ListIcon } from '@/components/list-icon'
+import { MarkListSeen } from '@/components/list-picture'
+
+function NewTag() {
+  return <span className="shrink-0 rounded-full bg-[#3a1d20] px-2 py-0.5 text-[11px] font-semibold tracking-wide text-[#f87171] uppercase">New</span>
+}
 
 export const metadata: Metadata = { title: 'Up next' }
 
@@ -30,19 +36,25 @@ export default async function BoardPage({
   return (
     <main className="mx-auto flex w-full max-w-[1200px] flex-col gap-6 px-5 pt-4 pb-10 lg:px-10 lg:pt-7">
       <header className="flex items-start justify-between gap-4 lg:items-center">
-        <div className="flex min-w-0 flex-1 flex-col gap-1">
-          <Link href="/lists" className="flex items-center gap-1.5 text-ink lg:pointer-events-none" aria-label={`${board.list.name}. Switch list`}>
-            <h1 className="truncate font-display text-[26px] leading-8 font-bold tracking-tight lg:text-[28px] lg:leading-[34px]">{board.list.name}</h1>
-            <Icon.chevronDown size={20} className="shrink-0 text-muted lg:hidden" />
+        <div className="flex min-w-0 flex-1 items-center gap-3 lg:gap-4">
+          <MarkListSeen listId={board.list.id} />
+          <Link href={`/lists/${board.list.id}/settings#picture`} aria-label="Change the list picture" className="hidden shrink-0 sm:block">
+            <ListIcon id={board.list.id} name={board.list.name} version={board.list.image_version} size={52} />
           </Link>
-          <p className="text-[13px] text-muted lg:text-sm">{subline}</p>
+          <div className="flex min-w-0 flex-1 flex-col gap-1">
+            <Link href="/lists" className="flex items-center gap-1.5 text-ink lg:pointer-events-none" aria-label={`${board.list.name}. Switch list`}>
+              <h1 className="truncate font-display text-[26px] leading-8 font-bold tracking-tight lg:text-[28px] lg:leading-[34px]">{board.list.name}</h1>
+              <Icon.chevronDown size={20} className="shrink-0 text-muted lg:hidden" />
+            </Link>
+            <p className="text-[13px] text-muted lg:text-sm">{subline}</p>
+          </div>
         </div>
         <div className="flex shrink-0 items-center gap-3">
           <span className="hidden sm:block">
             <AvatarStack people={board.members} size={30} />
           </span>
           <span className="hidden lg:block">
-            <Link href={`/library?list=${board.list.id}`} className={btn.outline}>
+            <Link href={`/library?list=${board.list.id}`} className={btn.primary}>
               <Icon.plus size={16} />
               Add games
             </Link>
@@ -120,12 +132,15 @@ function UpNextTab({ board }: { board: Board }) {
               <div key={g.id} className={cx('flex items-center gap-3 px-4 py-3', i > 0 && 'border-t border-line')}>
                 <Cover src={g.cover_url} title={g.title} className="w-9 shrink-0 rounded-[5px]" />
                 <span className="flex min-w-0 flex-1 flex-col">
-                  <span className="truncate font-semibold">{g.title}</span>
+                  <span className="flex min-w-0 items-center gap-2">
+                    <span className="truncate font-semibold">{g.title}</span>
+                    {g.is_new && <NewTag />}
+                  </span>
                   <span className="truncate text-[12.5px] text-muted">
                     {g.scored_count} of {g.member_count} scored{g.added_by_name ? ` · from ${g.added_by_name}` : ''}
                   </span>
                 </span>
-                <Link href={`/lists/${listId}/games/${g.id}`} className={cx(i === 0 ? btn.primary : btn.secondary, 'min-h-10 px-3.5 lg:min-h-9')}>
+                <Link href={`/lists/${listId}/games/${g.id}`} className={cx(btn.score, 'shrink-0')}>
                   Score
                 </Link>
               </div>

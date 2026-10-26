@@ -92,6 +92,19 @@ await pc.page.getByRole('link', { name: 'List settings and invite' }).click()
 await pc.page.waitForSelector('text=Invite friends')
 const code = (await pc.page.locator('#invite span.font-display').first().innerText()).trim()
 expect(/^[A-Z2-9]{4}-[A-Z2-9]{4}$/.test(code), `invite code looks right (${code})`)
+expect(
+  (await pc.page.getByRole('button', { name: 'Copy link' }).isVisible()) && (await pc.page.getByRole('button', { name: 'Copy code' }).isVisible()),
+  'Copy link and Copy code sit side by side',
+)
+
+log('choose a picture for the list')
+const shot = await pc.page.screenshot({ clip: { x: 0, y: 0, width: 240, height: 180 } })
+await pc.page.locator('#picture input[type=file]').setInputFiles({ name: 'squad.png', mimeType: 'image/png', buffer: shot })
+await pc.page.getByRole('button', { name: 'Change picture' }).waitFor({ timeout: 10000 })
+const sideImg = pc.page.locator('aside a', { hasText: 'Test Night' }).locator('img')
+await sideImg.waitFor()
+const loaded = await sideImg.evaluate((img) => img.complete ? img.naturalWidth : new Promise((r) => { img.onload = () => r(img.naturalWidth); img.onerror = () => r(0) }))
+expect(loaded > 0 && (await sideImg.getAttribute('src')).includes('/image?v='), `the picture shows in the sidebar (${loaded}px wide)`)
 await pc.page.screenshot({ path: `${out}/10-settings-pc.png`, fullPage: true })
 
 const mehdi = await session('mehdi', { width: 390, height: 844 })
@@ -107,6 +120,10 @@ expect(true, 'Mehdi joined Test Night')
 
 log('Mehdi adds a game by search')
 await mehdi.page.goto(base + '/library/add')
+await mehdi.page.getByPlaceholder('Search games').fill('heldivers')
+await mehdi.page.waitForSelector('[aria-label="Search results"] >> text=Helldivers 2')
+expect(true, 'a typo ("heldivers") still finds Helldivers 2')
+await mehdi.page.getByPlaceholder('Search games').fill('')
 await mehdi.page.getByPlaceholder('Search games').fill('lethal')
 await mehdi.page.waitForSelector('text=Lethal Company')
 await mehdi.page.getByRole('button', { name: /Lethal Company/ }).click()
@@ -116,14 +133,31 @@ await mehdi.page.getByRole('button', { name: 'Add to library' }).click()
 await mehdi.page.waitForURL(/\/library$/)
 expect(await mehdi.page.getByText('Lethal Company').first().isVisible(), 'Lethal Company is in Mehdi’s library')
 
-log('score once, used everywhere: Zac scored Lethal Company earlier, in another list')
+log('new games since your last visit')
 await pc.page.goto(base + '/lists')
+const testCard = pc.page.locator('article', { hasText: 'Test Night' })
+await testCard.waitFor({ state: 'visible' })
+expect((await testCard.innerText()).includes('1 new game since you last looked'), 'Zac sees "1 new game" on Test Night after Mehdi added one')
+expect(
+  await testCard.getByRole('status', { name: '1 new game' }).waitFor({ state: 'visible', timeout: 5000 }).then(() => true, () => false),
+  'and a red dot on the list picture',
+)
+await pc.page.screenshot({ path: `${out}/15-lists-new-dot-pc.png` })
+
+log('score once, used everywhere: Zac scored Lethal Company earlier, in another list')
 await pc.page.getByRole('link', { name: /Test Night/ }).first().click()
 await pc.page.waitForSelector('section[aria-label="Next up"]')
 const lead = await pc.page.locator('section[aria-label="Next up"]').innerText()
 expect(lead.includes('Lethal Company') && lead.includes('6.8'), 'Zac’s earlier score filled into Test Night: (6.6 + 7) / 2 = 6.8')
 await pc.page.screenshot({ path: `${out}/13-new-list-pc.png` })
+await pc.page.waitForTimeout(1200) // the visit is recorded just after the page opens
+await pc.page.goto(base + '/lists')
+await pc.page.locator('article', { hasText: 'Test Night' }).waitFor({ state: 'visible' })
+expect(!(await pc.page.locator('article', { hasText: 'Test Night' }).innerText()).includes('new game'), 'opening the list clears its new-game dot')
 await zac.page.goto(base + '/score')
+await zac.page.locator('main li a', { hasText: 'Score' }).first().waitFor({ state: 'visible' })
+const scoreClasses = await zac.page.locator('main li a', { hasText: 'Score' }).evaluateAll((els) => els.map((e) => e.className))
+expect(scoreClasses.length >= 2 && new Set(scoreClasses).size === 1, `every Score button looks the same (${scoreClasses.length} buttons)`)
 await zac.page.screenshot({ path: `${out}/14-to-score-phone.png`, fullPage: true })
 
 await browser.close()

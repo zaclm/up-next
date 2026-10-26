@@ -117,6 +117,50 @@ export async function unlinkCategory(listId: string, categoryId: number): Promis
   return res
 }
 
+// ----- List picture and "new since your last visit" ----------------------------------------
+
+const IMAGE_LIMIT = 400_000
+
+/** Checks the file really is the image type it claims (by its first bytes). */
+function imageType(buf: Buffer): 'image/webp' | 'image/jpeg' | 'image/png' | null {
+  if (buf.length > 12 && buf.toString('ascii', 0, 4) === 'RIFF' && buf.toString('ascii', 8, 12) === 'WEBP') return 'image/webp'
+  if (buf.length > 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return 'image/jpeg'
+  if (buf.length > 8 && buf[0] === 0x89 && buf.toString('ascii', 1, 4) === 'PNG') return 'image/png'
+  return null
+}
+
+export async function setListImage(listId: string, formData: FormData): Promise<Result> {
+  const file = formData.get('image')
+  if (!(file instanceof Blob) || file.size === 0) return { ok: false, error: 'Pick a picture first.' }
+  if (file.size > IMAGE_LIMIT) return { ok: false, error: 'That picture is too big. Try another one.' }
+  const buf = Buffer.from(await file.arrayBuffer())
+  const mime = imageType(buf)
+  if (!mime) return { ok: false, error: 'Use a JPG, PNG or WebP picture.' }
+  const res = await run(async (tx) => {
+    await tx`select public.set_list_image(${listId}::uuid, ${mime}, ${buf})`
+    return null
+  })
+  if (res.ok) refresh()
+  return res
+}
+
+export async function clearListImage(listId: string): Promise<Result> {
+  const res = await run(async (tx) => {
+    await tx`select public.clear_list_image(${listId}::uuid)`
+    return null
+  })
+  if (res.ok) refresh()
+  return res
+}
+
+/** Called when a member opens a list: games added before now stop counting as new. */
+export async function markListSeen(listId: string): Promise<void> {
+  await run(async (tx) => {
+    await tx`select public.mark_list_seen(${listId}::uuid)`
+    return null
+  })
+}
+
 // ----- Games in lists ----------------------------------------------------------------------
 
 export async function addGamesToLists(gameIds: number[], listIds: string[]): Promise<Result<number>> {
@@ -175,11 +219,39 @@ export async function saveScore(input: {
   return res
 }
 
+const COVER_HOSTS = /^(images\.igdb\.com|[a-z0-9-]+\.(akamai|fastly|cloudflare)\.steamstatic\.com|shared\.steamstatic\.com|steamcdn-a\.akamaihd\.net)$/
+
+/** Only covers from the game catalogs we use (or the sample covers when developing). */
+function allowedCover(url: string | null): string | null {
+  if (!url) return null
+  if (url.startsWith('/dev-covers/')) return url
+  try {
+    const u = new URL(url)
+    return u.protocol === 'https:' && COVER_HOSTS.test(u.hostname) ? u.toString() : null
+  } catch {
+    return null
+  }
+}
+
+/** Steam's tall cover is missing for some games: check it once, before saving it for everyone. */
+async function workingCover(url: string | null, fallback: string | null): Promise<string | null> {
+  if (!url || !/steamstatic\.com|akamaihd\.net/.test(url)) return url
+  try {
+    const res = await fetch(url, { method: 'HEAD', cache: 'no-store', signal: AbortSignal.timeout(2500) })
+    if (res.ok) return url
+  } catch {
+    // fall through to the fallback
+  }
+  return fallback
+}
+
 export async function addGameToLibrary(input: {
   gameId: number | null
   igdbId: number | null
+  steamAppid?: number | null
   title: string
   coverUrl: string | null
+  coverFallback?: string | null
   genres: string[]
   releaseYear: number | null
   before: number | null
@@ -197,15 +269,15 @@ export async function addGameToLibrary(input: {
   if (before === null) return { ok: false, error: 'Give it a Before score (how hyped are you?).' }
   const title = input.title.trim()
   if (!title) return { ok: false, error: 'A game needs a name.' }
-  const coverUrl =
-    input.coverUrl && /^(https:\/\/images\.igdb\.com\/|\/dev-covers\/)/.test(input.coverUrl) ? input.coverUrl : null
+  const steamAppid = Number.isSafeInteger(input.steamAppid) && input.steamAppid! > 0 ? input.steamAppid! : null
+  const coverUrl = input.gameId ? null : await workingCover(allowedCover(input.coverUrl), allowedCover(input.coverFallback ?? null))
 
   const res = await run(async (tx) => {
     let gameId = input.gameId
     if (!gameId) {
       const [g] = await tx<{ id: string }[]>`
         select public.upsert_game(${title}, ${input.igdbId}::bigint, ${coverUrl},
-          ${input.genres.slice(0, 5).map(String)}::text[], ${input.releaseYear}::smallint) as id`
+          ${input.genres.slice(0, 5).map(String)}::text[], ${input.releaseYear}::smallint, ${steamAppid}::bigint) as id`
       gameId = Number(g.id)
     }
     await tx`select public.save_score(${gameId}::bigint, ${before}::numeric, null, ${input.canPlay})`

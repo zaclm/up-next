@@ -1,10 +1,27 @@
 'use client'
 
 import Link from 'next/link'
+import { useEffect, useState } from 'react'
 import { usePathname } from 'next/navigation'
-import { Avatar, Cover, Icon, cx } from './ui'
+import { Avatar, Icon, cx } from './ui'
+import { ListIcon } from './list-icon'
 
-type ListLink = { id: string; name: string; needs_score: number; cover: string | null; next_title: string | null }
+type ListLink = { id: string; name: string; needs_score: number; image_version: number | null; new_count: number }
+
+/**
+ * New-game counts as the server last reported them, minus lists opened since. The navigation
+ * stays on screen between pages, so without this a list you just opened would keep its dot.
+ */
+function useNewCounts(lists: ListLink[], path: string) {
+  const [opened, setOpened] = useState<Record<string, number>>({})
+  const current = lists.find((l) => path.startsWith(`/lists/${l.id}`))
+  useEffect(() => {
+    if (current && current.new_count > 0 && opened[current.id] !== current.new_count) {
+      setOpened((o) => ({ ...o, [current.id]: current.new_count }))
+    }
+  }, [current, opened])
+  return (l: ListLink) => (l.id === current?.id || opened[l.id] === l.new_count ? 0 : l.new_count)
+}
 
 function useActive() {
   const path = usePathname()
@@ -29,6 +46,7 @@ export function Sidebar({
   firstListId: string | null
 }) {
   const a = useActive()
+  const newFor = useNewCounts(lists, a.path)
   const item = (on: boolean) =>
     cx('flex min-h-9 items-center gap-2.5 rounded-lg px-2.5', on ? 'bg-line-soft font-medium text-ink' : 'text-soft hover:text-ink')
   return (
@@ -78,7 +96,7 @@ export function Sidebar({
                 aria-current={on ? 'page' : undefined}
                 className={cx('flex min-h-12 items-center gap-2.5 rounded-lg px-2.5 py-1.5', on ? 'bg-line-soft' : 'hover:bg-[#15171b]')}
               >
-                <Cover src={l.cover} title={l.next_title ?? l.name} className="w-[27px] shrink-0 rounded" />
+                <ListIcon id={l.id} name={l.name} version={l.image_version} size={34} newCount={newFor(l)} />
                 <span className="flex min-w-0 flex-col">
                   <span className="truncate font-medium">{l.name}</span>
                   <span className={cx('text-[12.5px]', l.needs_score ? 'text-accent' : 'text-muted')}>
@@ -104,8 +122,10 @@ export function Sidebar({
   )
 }
 
-export function BottomNav({ queueCount, firstListId }: { queueCount: number; firstListId: string | null }) {
+export function BottomNav({ queueCount, firstListId, lists }: { queueCount: number; firstListId: string | null; lists: ListLink[] }) {
   const a = useActive()
+  const newFor = useNewCounts(lists, a.path)
+  const newTotal = lists.reduce((n, l) => n + newFor(l), 0)
   const tab = (on: boolean) =>
     cx('relative flex min-h-[52px] flex-col items-center justify-center gap-1 text-xs', on ? 'font-semibold text-ink' : 'text-muted')
   return (
@@ -133,6 +153,14 @@ export function BottomNav({ queueCount, firstListId }: { queueCount: number; fir
       <Link href="/lists" className={tab(a.lists)} aria-current={a.lists ? 'page' : undefined}>
         <Icon.people size={22} className={a.lists ? 'text-accent' : undefined} />
         Lists
+        {newTotal > 0 && (
+          <span
+            aria-label={newTotal === 1 ? '1 new game in your lists' : `${newTotal} new games in your lists`}
+            className="absolute top-0.5 left-[calc(50%+6px)] flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#ef4444] px-1 text-[11px] font-bold text-white"
+          >
+            {newTotal > 9 ? '9+' : newTotal}
+          </span>
+        )}
       </Link>
     </nav>
   )

@@ -44,7 +44,8 @@ npm run dev        # http://localhost:3000
 
 ```bash
 npm run typecheck
-npm run db:test             # 36 rule checks: math, threshold, blind scoring, playable filter, permissions
+npm run db:test             # rule checks: math, threshold, blind scoring, playable filter, permissions, search, pictures
+npm run test:search         # search ranking: typos, partial words, DLC below games, merging Steam/IGDB results
 npm run build && npm start  # then, in another terminal:
 npm run db:reset && npm run e2e   # clicks through the app as Zac and Mehdi; screenshots go to e2e/shots/
 ```
@@ -94,15 +95,15 @@ Email sign-in is on by default in Supabase. Two things to decide:
   {{ .SiteURL }}/auth/callback?token_hash={{ .TokenHash }}&type=email&next=/
   ```
 
-### 5. Game catalog (IGDB)
+### 5. Game catalog (Steam + IGDB)
 
-Game search uses IGDB, which signs in through Twitch:
+Game search asks three places at once and merges the answers: games already in Up Next (with typo-tolerant matching in the database), Steam's store search (no key needed; it corrects typos and knows what's popular), and IGDB, which also covers games that aren't on Steam. IGDB signs in through Twitch:
 
 1. [dev.twitch.tv/console/apps](https://dev.twitch.tv/console/apps) → Register Your Application.
 2. OAuth Redirect URL: `http://localhost`. Category: Application Integration. Client type: Confidential.
 3. Copy the Client ID and create a secret → `TWITCH_CLIENT_ID`, `TWITCH_CLIENT_SECRET`.
 
-Without these, search still finds games already in the app, and players can add a game by name.
+Without these, search still uses Steam and the games already in the app, and players can add a game by name. Each search writes one `[search]` line to the server logs (the query, how many results each source gave, the top three and any source that failed).
 
 ### 6. Vercel
 

@@ -21,7 +21,7 @@ export default async function LibraryPage({ searchParams }: { searchParams: Prom
             {plural(library.games.length, 'game')} · each score is used in every list the game is in
           </p>
         </div>
-        <Link href={preselect ? `/library/add?list=${preselect}` : '/library/add'} aria-label="Add a game" className={cx(btn.outline, 'shrink-0 px-3 lg:px-4')}>
+        <Link href={preselect ? `/library/add?list=${preselect}` : '/library/add'} aria-label="Add a game" className={cx(btn.primary, 'shrink-0 px-3 lg:px-4')}>
           <Icon.plus size={18} />
           <span className="hidden sm:inline">Add a game</span>
         </Link>

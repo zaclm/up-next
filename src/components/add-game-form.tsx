@@ -35,32 +35,52 @@ export function AddGameForm({
   const [pending, start] = useTransition()
   const [error, setError] = useState<string | null>(null)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const inflight = useRef<AbortController | null>(null)
 
   useEffect(() => {
     if (timer.current) clearTimeout(timer.current)
     const q = query.trim()
     if (q.length < 2) {
+      inflight.current?.abort()
       setResults([])
+      setSearching(false)
       return
     }
     timer.current = setTimeout(async () => {
+      // Only the newest search may show its results; a slow older answer is dropped.
+      inflight.current?.abort()
+      const ctrl = new AbortController()
+      inflight.current = ctrl
       setSearching(true)
       try {
-        const res = await fetch(`/api/games/search?q=${encodeURIComponent(q)}`)
+        const res = await fetch(`/api/games/search?q=${encodeURIComponent(q)}`, { signal: ctrl.signal })
         const body = (await res.json()) as { results: CatalogResult[]; igdb: boolean }
+        if (ctrl.signal.aborted) return
         setResults(body.results ?? [])
-        setIgdbOn(body.igdb)
+        setIgdbOn(body.igdb !== false)
       } catch {
-        setResults([])
+        if (!ctrl.signal.aborted) setResults([])
       } finally {
-        setSearching(false)
+        if (inflight.current === ctrl) setSearching(false)
       }
-    }, 250)
+    }, 220)
   }, [query])
 
   const manual: CatalogResult | null =
     query.trim().length >= 2 && !results.some((r) => r.title.toLowerCase() === query.trim().toLowerCase())
-      ? { key: 'manual', igdb_id: null, game_id: null, title: query.trim(), cover_url: null, genres: [], release_year: null }
+      ? {
+          key: 'manual',
+          igdb_id: null,
+          steam_appid: null,
+          game_id: null,
+          title: query.trim(),
+          cover_url: null,
+          cover_fallback: null,
+          genres: [],
+          release_year: null,
+          players: 0,
+          source: 'upnext',
+        }
       : null
 
   function submit() {
@@ -70,8 +90,10 @@ export function AddGameForm({
       const res = await addGameToLibrary({
         gameId: pick.game_id,
         igdbId: pick.igdb_id,
+        steamAppid: pick.steam_appid,
         title: pick.title,
         coverUrl: pick.cover_url,
+        coverFallback: pick.cover_fallback,
         genres: pick.genres,
         releaseYear: pick.release_year,
         before,
@@ -128,7 +150,7 @@ export function AddGameForm({
                         <Icon.plus size={18} />
                       </span>
                     ) : (
-                      <Cover src={r.cover_url} title={r.title} className="w-[42px] shrink-0 rounded-md" />
+                      <Cover src={r.cover_url} fallback={r.cover_fallback} title={r.title} className="w-[42px] shrink-0 rounded-md" />
                     )}
                     <span className="flex min-w-0 flex-1 flex-col">
                       <span className="truncate font-semibold">{r.key === 'manual' ? `Add “${r.title}” by name` : r.title}</span>
@@ -137,7 +159,14 @@ export function AddGameForm({
                           ? 'Already in your library'
                           : r.key === 'manual'
                             ? 'Not listed? Add it without a cover'
-                            : [r.release_year, r.genres.slice(0, 2).join(', ')].filter(Boolean).join(' · ') || 'Game'}
+                            : [
+                                r.players > 0 ? (r.players === 1 ? '1 player in Up Next' : `${r.players} players in Up Next`) : null,
+                                r.release_year,
+                                r.genres.slice(0, 2).join(', '),
+                                r.source === 'steam' && !r.genres.length ? 'On Steam' : null,
+                              ]
+                                .filter(Boolean)
+                                .join(' · ') || 'Game'}
                       </span>
                     </span>
                     {on && <Icon.check size={20} className="shrink-0 text-accent" />}
@@ -148,7 +177,9 @@ export function AddGameForm({
           </ul>
         )}
         <p className="text-xs text-muted">
-          {igdbOn ? 'Game info from IGDB.' : 'Searching games already in Up Next. Connect IGDB for covers and the full catalog (see README).'}
+          {igdbOn
+            ? 'Searches Steam, IGDB and games your friends already added. Typos are fine.'
+            : 'Searches Steam and games your friends already added. Typos are fine.'}
         </p>
       </section>
 

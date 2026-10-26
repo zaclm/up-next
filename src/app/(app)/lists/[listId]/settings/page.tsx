@@ -5,6 +5,7 @@ import { plural } from '@/lib/format'
 import { Avatar, Cover, Icon, SectionHeading, card, cx } from '@/components/ui'
 import { InviteBox, LinkCategoryControl, PlayableSwitch, RenameList } from '@/components/list-forms'
 import { LeaveListButton, StatusButton } from '@/components/list-actions'
+import { ListPictureEditor } from '@/components/list-picture'
 
 export const metadata: Metadata = { title: 'List settings' }
 
@@ -32,6 +33,11 @@ export default async function ListSettingsPage({ params }: { params: Promise<{ l
           <h1 className="font-display text-xl leading-[26px] font-bold lg:text-[28px] lg:leading-[34px]">{list.name} settings</h1>
         </div>
       </header>
+
+      <section aria-labelledby="pic-h" id="picture" className="flex scroll-mt-6 flex-col gap-3">
+        <SectionHeading id="pic-h" title="Picture" />
+        <ListPictureEditor listId={listId} name={list.name} version={list.image_version} />
+      </section>
 
       <section aria-labelledby="invite-h" id="invite" className="flex scroll-mt-6 flex-col gap-3">
         <SectionHeading id="invite-h" title="Invite friends" />

@@ -35,7 +35,7 @@ export default async function ScoreQueuePage() {
                     {g.lists.map((l) => `${l.name} · ${l.scored_count} of ${l.member_count} scored`).join(' — ')}
                   </span>
                 </span>
-                <Link href={`/lists/${first.id}/games/${g.id}`} className={cx(i === 0 ? btn.primary : btn.secondary, 'min-h-10 shrink-0 px-3.5')}>
+                <Link href={`/lists/${first.id}/games/${g.id}`} className={cx(btn.score, 'shrink-0')}>
                   Score
                 </Link>
               </li>

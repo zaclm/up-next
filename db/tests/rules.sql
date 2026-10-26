@@ -265,6 +265,74 @@ select pg_temp.check(
   (select count(*) from jsonb_array_elements(public.my_library() -> 'games')) = 7,
   'Zac''s library holds the 7 games he scored');
 
+-- One row per game, whichever catalog it came from ----------------------------------
+select pg_temp.check(public.title_key('THE FINALS') = public.title_key('The Finals™')
+  and public.title_key('Call of Duty®: Black Ops') = 'call of duty black ops'
+  and public.title_key('R.E.P.O.') = 'repo' and public.title_key('Baldur''s Gate 3') = 'baldurs gate 3',
+  'titles compare without case, ™/®, dots, apostrophes or a leading "The" (same rule as the app)');
+select pg_temp.as_user('mehdi');
+select pg_temp.check(public.upsert_game('HELLDIVERS™ 2', null, null, '{}', null, 553850) = pg_temp.g('hd2'),
+  'picking "HELLDIVERS™ 2" from Steam lands on the existing Helldivers 2');
+select pg_temp.check((select steam_appid from games where id = pg_temp.g('hd2')) = 553850,
+  'and its Steam app id is saved on that row');
+select pg_temp.check(public.upsert_game('Helldivers 2', 250616) = pg_temp.g('hd2'),
+  'picking it from IGDB later also lands there');
+select pg_temp.check((select igdb_id from games where id = pg_temp.g('hd2')) = 250616,
+  'and adds the IGDB id');
+select pg_temp.check(public.upsert_game('HELLDIVERS 2: Super Citizen', null, null, '{}', null, 553850) = pg_temp.g('hd2'),
+  'the same Steam app id always means the same game');
+select public.upsert_game('Valheim', 250616);
+select pg_temp.check((select igdb_id from games where id = pg_temp.g('valheim')) is null,
+  'an IGDB id already used by another game is never copied onto a second row');
+
+-- Search finds games already in Up Next despite typos
+select pg_temp.check((select title from public.search_games('heldivers') limit 1) = 'Helldivers 2', 'search: "heldivers" finds Helldivers 2');
+select pg_temp.check((select title from public.search_games('valhem') limit 1) = 'Valheim', 'search: "valhem" finds Valheim');
+select pg_temp.check((select title from public.search_games('lethal comp') limit 1) = 'Lethal Company', 'search: "lethal comp" finds Lethal Company');
+select pg_temp.check((select title from public.search_games('deep') limit 1) = 'Deep Rock Galactic', 'search: the first word alone finds Deep Rock Galactic');
+
+-- New since your last visit -------------------------------------------------------
+update list_members set last_seen_at = now() - interval '1 hour'
+where list_id = (select id from t_list) and user_id = pg_temp.uid('zac');
+select pg_temp.as_user('karim');
+insert into t_games values ('among', public.upsert_game('Among Us'));
+select public.add_games_to_lists(array[pg_temp.g('among')], array[(select id from t_list)]);
+select pg_temp.as_user('zac');
+select pg_temp.check((select (l ->> 'new_count')::int from jsonb_array_elements(public.my_lists()) l) = 1,
+  'Karim adding Among Us shows 1 new game on Zac''s list');
+select pg_temp.check(
+  (select (c ->> 'is_new')::boolean from jsonb_array_elements(public.list_board((select id from t_list)) -> 'needs_score') c
+   where c ->> 'title' = 'Among Us'),
+  'Among Us is marked new on Zac''s board');
+select public.mark_list_seen((select id from t_list));
+select pg_temp.check((select (l ->> 'new_count')::int from jsonb_array_elements(public.my_lists()) l) = 0,
+  'opening the list clears the new count');
+select pg_temp.as_user('karim');
+select pg_temp.check((select (l ->> 'new_count')::int from jsonb_array_elements(public.my_lists()) l) = 0,
+  'your own additions never count as new for you');
+
+-- List pictures -------------------------------------------------------------------
+select public.set_list_image((select id from t_list), 'image/webp', decode(repeat('ab', 200), 'hex'));
+select pg_temp.as_user('zac');
+select pg_temp.check((select (l ->> 'image_version') is not null from jsonb_array_elements(public.my_lists()) l)
+  and (select octet_length(data) from public.list_image((select id from t_list))) = 200,
+  'any member can set the list picture, and every member gets it');
+select pg_temp.as_user('mehdi');
+do $$ begin
+  perform public.set_list_image((select id from t_list), 'image/webp', decode(repeat('ab', 200), 'hex'));
+  raise exception 'FAILED: a non-member changed the list picture';
+exception when no_data_found then raise notice 'ok - people outside the list cannot change its picture';
+end $$;
+do $$ begin
+  perform * from public.list_image((select id from t_list));
+  raise exception 'FAILED: a non-member read the list picture';
+exception when no_data_found then raise notice 'ok - people outside the list cannot see its picture';
+end $$;
+select pg_temp.as_user('zac');
+select public.clear_list_image((select id from t_list));
+select pg_temp.check((select (l ->> 'image_version') is null from jsonb_array_elements(public.my_lists()) l),
+  'removing the picture goes back to the default');
+
 -- Leaving: the creator leaves, the list moves to the next member
 select public.leave_list((select id from t_list));
 select pg_temp.check((select created_by from lists where id = (select id from t_list)) = pg_temp.uid('karim'),

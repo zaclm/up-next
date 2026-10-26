@@ -13,14 +13,14 @@ async function Chrome() {
     id: l.id,
     name: l.name,
     needs_score: l.needs_score,
-    cover: l.next?.cover_url ?? l.covers[0] ?? null,
-    next_title: l.next?.title ?? null,
+    image_version: l.image_version,
+    new_count: l.new_count,
   }))
   const firstListId = lists[0]?.id ?? null
   return (
     <>
       <Sidebar lists={links} queueCount={queue.length} me={me} firstListId={firstListId} />
-      <BottomNav queueCount={queue.length} firstListId={firstListId} />
+      <BottomNav queueCount={queue.length} firstListId={firstListId} lists={links} />
     </>
   )
 }
