@@ -8,6 +8,7 @@ import { DEV_COOKIE, requireMe, type Me } from '@/lib/auth'
 import { authMode } from '@/lib/env'
 import { createSupabaseServer } from '@/lib/supabase/server'
 import { isValidScore, safePath } from '@/lib/format'
+import { steamArt } from '@/lib/search/steam'
 
 export type Result<T = null> = { ok: true; data: T } | { ok: false; error: string }
 
@@ -153,6 +154,16 @@ export async function clearListImage(listId: string): Promise<Result> {
   return res
 }
 
+/** The "Played games" switch on a list's Up next tab (saved per member, per list). */
+export async function setIncludePlayed(listId: string, on: boolean): Promise<Result> {
+  const res = await run(async (tx) => {
+    await tx`select public.set_include_played(${listId}::uuid, ${on})`
+    return null
+  })
+  if (res.ok) refresh()
+  return res
+}
+
 /** Called when a member opens a list: games added before now stop counting as new. */
 export async function markListSeen(listId: string): Promise<void> {
   await run(async (tx) => {
@@ -233,16 +244,32 @@ function allowedCover(url: string | null): string | null {
   }
 }
 
-/** Steam's tall cover is missing for some games: check it once, before saving it for everyone. */
-async function workingCover(url: string | null, fallback: string | null): Promise<string | null> {
-  if (!url || !/steamstatic\.com|akamaihd\.net/.test(url)) return url
-  try {
-    const res = await fetch(url, { method: 'HEAD', cache: 'no-store', signal: AbortSignal.timeout(2500) })
-    if (res.ok) return url
-  } catch {
-    // fall through to the fallback
+/**
+ * A cover that loads, checked once before it is saved for everyone. Steam picks are looked up
+ * in Steam's store service when the address we have doesn't answer (new games keep their art
+ * at addresses only that service knows).
+ */
+async function workingCover(url: string | null, fallback: string | null, steamAppid: number | null): Promise<string | null> {
+  const ok = async (u: string | null) => {
+    if (!u) return false
+    if (!/steamstatic\.com|akamaihd\.net/.test(u)) return true
+    try {
+      return (await fetch(u, { method: 'HEAD', cache: 'no-store', signal: AbortSignal.timeout(2500) })).ok
+    } catch {
+      return false
+    }
   }
-  return fallback
+  if (await ok(url)) return url
+  if (steamAppid) {
+    try {
+      const a = (await steamArt([steamAppid])).get(steamAppid)
+      const best = allowedCover(a?.cover ?? null) ?? allowedCover(a?.header ?? null)
+      if (best) return best
+    } catch {
+      // fall through
+    }
+  }
+  return (await ok(fallback)) ? fallback : null
 }
 
 export async function addGameToLibrary(input: {
@@ -270,11 +297,14 @@ export async function addGameToLibrary(input: {
   const title = input.title.trim()
   if (!title) return { ok: false, error: 'A game needs a name.' }
   const steamAppid = Number.isSafeInteger(input.steamAppid) && input.steamAppid! > 0 ? input.steamAppid! : null
-  const coverUrl = input.gameId ? null : await workingCover(allowedCover(input.coverUrl), allowedCover(input.coverFallback ?? null))
+  const coverUrl = await workingCover(allowedCover(input.coverUrl), allowedCover(input.coverFallback ?? null), steamAppid)
 
   const res = await run(async (tx) => {
     let gameId = input.gameId
-    if (!gameId) {
+    if (gameId) {
+      // A game already in Up Next: fill in a missing cover or catalog id from this pick.
+      await tx`select public.fill_game_details(${gameId}::bigint, ${coverUrl}, ${input.igdbId}::bigint, ${steamAppid}::bigint)`
+    } else {
       const [g] = await tx<{ id: string }[]>`
         select public.upsert_game(${title}, ${input.igdbId}::bigint, ${coverUrl},
           ${input.genres.slice(0, 5).map(String)}::text[], ${input.releaseYear}::smallint, ${steamAppid}::bigint) as id`

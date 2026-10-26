@@ -100,3 +100,15 @@ test('reads Steam’s suggestion HTML (real answer for "heldiver")', async () =>
   assert.deepEqual(hits.map((h) => [h.appid, h.name]), [[553850, 'HELLDIVERS 2'], [3250020, 'Hell Dive'], [9, "Tom & Jerry's"]])
   assert.ok(hits[0].image?.includes('capsule_231x87'))
 })
+
+test('builds Steam artwork addresses from the store service (new games use hashed folders)', async () => {
+  const { assetUrls } = await import('./steam-parse.ts')
+  const art = assetUrls({
+    asset_url_format: 'steam/apps/5362020/${FILENAME}?t=1793045084',
+    library_capsule: '0c96d4e16f7d679933e9121ee5f83d088c0cec88/library_capsule.jpg',
+    header: 'fdafac6a97129e0bc04895c981b135022f167f90/header.jpg',
+  })
+  assert.equal(art.cover, 'https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/5362020/0c96d4e16f7d679933e9121ee5f83d088c0cec88/library_capsule.jpg?t=1793045084')
+  assert.ok(art.header?.endsWith('/header.jpg?t=1793045084'))
+  assert.deepEqual(assetUrls(undefined), { cover: null, header: null })
+})

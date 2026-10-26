@@ -7,7 +7,7 @@ import 'server-only'
 // Results are cached for a while, since people type the same few games and Steam limits
 // how often one server may ask.
 
-import { cleanSteamName, parseSuggest, type SteamHit } from './steam-parse'
+import { assetUrls, cleanSteamName, parseSuggest, type SteamAssets, type SteamHit } from './steam-parse'
 export type { SteamHit }
 
 const TTL = 15 * 60 * 1000
@@ -60,4 +60,37 @@ export function steamSearch(query: string) {
       .filter((i) => i.type === 'app')
       .map((i) => ({ appid: i.id, name: cleanSteamName(i.name), image: i.tiny_image ?? null }))
   })
+}
+
+const ART_TTL = 24 * 60 * 60 * 1000
+const artCache = new Map<number, { at: number; value: { cover: string | null; header: string | null } }>()
+
+/**
+ * The real cover and header for each Steam app, from Steam's store service (one request for
+ * up to 20 games). Older games also answer at the old fixed address; new ones only here.
+ */
+export async function steamArt(appids: number[]) {
+  const out = new Map<number, { cover: string | null; header: string | null }>()
+  const missing: number[] = []
+  for (const id of new Set(appids)) {
+    const hit = artCache.get(id)
+    if (hit && Date.now() - hit.at < ART_TTL) out.set(id, hit.value)
+    else missing.push(id)
+  }
+  if (missing.length) {
+    const input = {
+      ids: missing.slice(0, 20).map((appid) => ({ appid })),
+      context: { language: 'english', country_code: 'US' },
+      data_request: { include_assets: true },
+    }
+    const res = await get('https://api.steampowered.com/IStoreBrowseService/GetItems/v1?input_json=' + encodeURIComponent(JSON.stringify(input)))
+    const body = (await res.json()) as { response?: { store_items?: { appid: number; assets?: SteamAssets }[] } }
+    for (const item of body.response?.store_items ?? []) {
+      const value = assetUrls(item.assets)
+      if (artCache.size > 2000) artCache.delete(artCache.keys().next().value!)
+      artCache.set(item.appid, { at: Date.now(), value })
+      out.set(item.appid, value)
+    }
+  }
+  return out
 }

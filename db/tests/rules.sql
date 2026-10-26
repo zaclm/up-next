@@ -256,6 +256,26 @@ select pg_temp.check(
   and jsonb_array_length(public.list_board((select id from t_list)) -> 'played') = 1,
   'marking Helldivers 2 as played moves it to Played together; Deep Rock Galactic is up next');
 
+-- "Played games" switch: played games join the ranking for whoever turns it on
+select pg_temp.check((public.list_board((select id from t_list)) -> 'list' ->> 'include_played')::boolean = false,
+  'the Played games switch starts off');
+select public.set_include_played((select id from t_list), true);
+select pg_temp.check(
+  (select jsonb_agg(c ->> 'title' order by (c ->> 'rank')::int) from jsonb_array_elements(public.list_board((select id from t_list)) -> 'ranked_all') c)
+    -> 0 = '"Helldivers 2"'::jsonb
+  and (public.list_board((select id from t_list)) -> 'ranked' -> 0 ->> 'title') = 'Deep Rock Galactic'
+  and (public.list_board((select id from t_list)) -> 'list' ->> 'include_played')::boolean,
+  'with the switch on, played Helldivers 2 (8.4) is ranked #1 among all games; Up next alone still starts with Deep Rock Galactic');
+select pg_temp.check(
+  (select array_agg((c ->> 'rank')::int order by (c ->> 'rank')::int) from jsonb_array_elements(public.list_board((select id from t_list)) -> 'ranked_all') c)
+    = array[1, 2, 3, 4, 5],
+  'the full ranking is numbered 1 to 5 without gaps');
+select pg_temp.as_user('karim');
+select pg_temp.check((public.list_board((select id from t_list)) -> 'list' ->> 'include_played')::boolean = false,
+  'the switch is per person: Karim still has it off');
+select pg_temp.as_user('zac');
+select public.set_include_played((select id from t_list), false);
+
 -- Summaries
 select pg_temp.check(jsonb_array_length(public.my_lists()) = 1, 'my_lists returns Zac''s list');
 select pg_temp.check(

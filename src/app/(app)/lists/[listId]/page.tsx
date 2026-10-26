@@ -7,6 +7,7 @@ import { Avatar, AvatarStack, Cover, Icon, SectionHeading, btn, card, cx } from 
 import { MarkPlayedButton } from '@/components/list-actions'
 import { ListIcon } from '@/components/list-icon'
 import { MarkListSeen } from '@/components/list-picture'
+import { PlayedSwitch } from '@/components/played-switch'
 
 function NewTag() {
   return <span className="shrink-0 rounded-full bg-[#3a1d20] px-2 py-0.5 text-[11px] font-semibold tracking-wide text-[#f87171] uppercase">New</span>
@@ -65,13 +66,20 @@ export default async function BoardPage({
         </div>
       </header>
 
-      <div role="tablist" aria-label="List view" className="grid grid-cols-2 gap-1 rounded-xl bg-surface p-1 lg:flex lg:gap-6 lg:rounded-none lg:border-b lg:border-line lg:bg-transparent lg:p-0">
-        <TabLink href={`/lists/${board.list.id}`} active={!showPlayed}>
-          Up next
-        </TabLink>
-        <TabLink href={`/lists/${board.list.id}?tab=played`} active={showPlayed}>
-          Played together{board.played.length ? ` · ${board.played.length}` : ''}
-        </TabLink>
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between lg:gap-4 lg:border-b lg:border-line">
+        <div role="tablist" aria-label="List view" className="grid grid-cols-2 gap-1 rounded-xl bg-surface p-1 lg:flex lg:gap-6 lg:rounded-none lg:bg-transparent lg:p-0">
+          <TabLink href={`/lists/${board.list.id}`} active={!showPlayed}>
+            Up next
+          </TabLink>
+          <TabLink href={`/lists/${board.list.id}?tab=played`} active={showPlayed}>
+            Played together{board.played.length ? ` · ${board.played.length}` : ''}
+          </TabLink>
+        </div>
+        {!showPlayed && board.played.length > 0 && (
+          <div className="self-start lg:self-auto lg:pb-1.5">
+            <PlayedSwitch listId={board.list.id} on={board.list.include_played} count={board.ranked_all.length - board.ranked.length} />
+          </div>
+        )}
       </div>
 
       {showPlayed ? <PlayedTab board={board} /> : <UpNextTab board={board} />}
@@ -98,7 +106,9 @@ function TabLink({ href, active, children }: { href: string; active: boolean; ch
 }
 
 function UpNextTab({ board }: { board: Board }) {
-  const [lead, ...rest] = board.ranked
+  // With the "Played games" switch on, played games are ranked together with the rest.
+  const ranking = board.list.include_played ? board.ranked_all : board.ranked
+  const [lead, ...rest] = ranking
   const listId = board.list.id
   const nothing = !lead && board.waiting.length === 0 && board.needs_score.length === 0 && board.blocked.length === 0
 
@@ -169,7 +179,9 @@ function UpNextTab({ board }: { board: Board }) {
           </section>
         )}
 
-        {rest.length > 0 && <RankedTable cards={rest} listId={listId} memberCount={board.list.member_count} />}
+        {rest.length > 0 && (
+          <RankedTable cards={rest} listId={listId} memberCount={board.list.member_count} withPlayed={board.list.include_played} />
+        )}
 
         {board.waiting.length > 0 && (
           <section aria-labelledby="wait-h" className="flex flex-col gap-3">
@@ -231,14 +243,16 @@ function BlockedSection({ board }: { board: Board }) {
 }
 
 function FeaturedCard({ card: g, listId }: { card: BoardCard; listId: string }) {
+  const played = g.status === 'played'
+  const label = played ? `Ranked #1 · played together ${shortDate(g.played_at)}` : 'Next up · ranked #1'
   return (
-    <section aria-label="Next up" className={cx(card, 'flex flex-col gap-4 p-4 sm:flex-row sm:gap-6 sm:p-6')}>
+    <section aria-label="Next up" className={cx(card, 'relative flex flex-col gap-4 overflow-hidden p-4 sm:flex-row sm:gap-6 sm:p-6', played && playedStripe)}>
       <div className="flex gap-4 sm:contents">
         <Link href={`/lists/${listId}/games/${g.id}`} className="shrink-0">
           <Cover src={g.cover_url} title={g.title} alt={`${g.title} cover`} className="w-[108px] rounded-lg sm:w-[168px] sm:rounded-[10px]" />
         </Link>
         <div className="flex min-w-0 flex-1 flex-col gap-1 pt-1 sm:hidden">
-          <span className="text-xs text-muted">Next up · ranked #1</span>
+          <span className="text-xs text-muted">{label}</span>
           <h2 className="font-display text-[22px] leading-7 font-bold tracking-tight">{g.title}</h2>
           <span className="mt-2 flex items-baseline gap-2">
             <span className="font-display text-[40px] leading-10 font-bold text-accent tnum">{fmtScore(g.group_score)}</span>
@@ -249,7 +263,10 @@ function FeaturedCard({ card: g, listId }: { card: BoardCard; listId: string }) 
       </div>
       <div className="flex min-w-0 flex-1 flex-col gap-4">
         <div className="hidden flex-col gap-1 sm:flex">
-          <span className="text-[13px] text-muted">Next up · ranked #1{g.genres.length ? ` · ${g.genres.slice(0, 2).join(', ')}` : ''}</span>
+          <span className="text-[13px] text-muted">
+            {label}
+            {g.genres.length ? ` · ${g.genres.slice(0, 2).join(', ')}` : ''}
+          </span>
           <h2 className="font-display text-[30px] leading-9 font-bold tracking-tight">{g.title}</h2>
           <span className="mt-2 flex flex-wrap items-baseline gap-3">
             <span className="font-display text-[40px] leading-10 font-bold text-accent tnum">{fmtScore(g.group_score)}</span>
@@ -273,7 +290,14 @@ function FeaturedCard({ card: g, listId }: { card: BoardCard; listId: string }) 
           </div>
         )}
         <div className="flex flex-col gap-2 sm:mt-auto sm:flex-row">
-          <MarkPlayedButton listId={listId} gameId={g.id} className="w-full sm:w-auto" />
+          {played ? (
+            <span className="flex min-h-11 items-center gap-2 self-start rounded-xl bg-accent-tint px-4 font-semibold text-accent lg:min-h-10">
+              <Icon.check size={18} />
+              Played together
+            </span>
+          ) : (
+            <MarkPlayedButton listId={listId} gameId={g.id} className="w-full sm:w-auto" />
+          )}
           <span className="hidden sm:block">
             <Link href={`/lists/${listId}/games/${g.id}`} className={btn.secondary}>
               Open game
@@ -292,7 +316,24 @@ function scoreMix(g: BoardCard) {
   return `${g.scored_count} of ${g.member_count} scored${parts.length ? ` · ${parts.join(', ')}` : ''}`
 }
 
-function RankedTable({ cards, listId, memberCount }: { cards: BoardCard[]; listId: string; memberCount: number }) {
+/** Left edge mark for games the group already played, when they are ranked with the rest. */
+const playedStripe = 'before:absolute before:inset-y-0 before:left-0 before:w-[3px] before:bg-accent'
+
+function PlayedTag() {
+  return <span className="shrink-0 rounded-full bg-accent-tint px-2 py-0.5 text-[11px] font-semibold tracking-wide text-accent uppercase">Played</span>
+}
+
+function RankedTable({
+  cards,
+  listId,
+  memberCount,
+  withPlayed = false,
+}: {
+  cards: BoardCard[]
+  listId: string
+  memberCount: number
+  withPlayed?: boolean
+}) {
   const people = cards[0]?.scores ?? []
   const showPeople = memberCount <= 5
   const cols = `48px minmax(0,1fr) ${showPeople ? `repeat(${people.length}, 72px) ` : ''}88px`
@@ -303,6 +344,12 @@ function RankedTable({ cards, listId, memberCount }: { cards: BoardCard[]; listI
           After that
         </h2>
         <span className="hidden gap-4 text-[12.5px] text-muted lg:flex">
+          {withPlayed && (
+            <span className="flex items-center gap-1.5">
+              <span className="h-3 w-[3px] rounded-full bg-accent" />
+              played together
+            </span>
+          )}
           <span className="flex items-center gap-1.5">
             <span className="size-2 rounded-full bg-ink" />
             played
@@ -317,11 +364,18 @@ function RankedTable({ cards, listId, memberCount }: { cards: BoardCard[]; listI
       {/* Phone: one row per game */}
       <div className={cx(card, 'flex flex-col py-1 lg:hidden')}>
         {cards.map((g, i) => (
-          <Link key={g.id} href={`/lists/${listId}/games/${g.id}`} className={cx('flex items-center gap-3 px-4 py-3', i > 0 && 'border-t border-line')}>
+          <Link
+            key={g.id}
+            href={`/lists/${listId}/games/${g.id}`}
+            className={cx('relative flex items-center gap-3 px-4 py-3', i > 0 && 'border-t border-line', g.status === 'played' && playedStripe)}
+          >
             <span className="w-4 shrink-0 text-[13px] text-muted tnum">{g.rank}</span>
             <Cover src={g.cover_url} title={g.title} className="w-[42px] shrink-0 rounded-md" />
             <span className="flex min-w-0 flex-1 flex-col">
-              <span className="truncate font-semibold">{g.title}</span>
+              <span className="flex min-w-0 items-center gap-2">
+                <span className="truncate font-semibold">{g.title}</span>
+                {g.status === 'played' && <PlayedTag />}
+              </span>
               <span className="truncate text-[12.5px] text-muted">{scoreMix(g)}</span>
             </span>
             <span className="font-display text-xl font-semibold tnum">{fmtScore(g.group_score)}</span>
@@ -350,7 +404,12 @@ function RankedTable({ cards, listId, memberCount }: { cards: BoardCard[]; listI
             </span>
           </div>
           {cards.map((g) => (
-            <div key={g.id} role="row" className="grid items-center border-t border-line" style={{ gridTemplateColumns: cols }}>
+            <div
+              key={g.id}
+              role="row"
+              className={cx('relative grid items-center border-t border-line', g.status === 'played' && playedStripe)}
+              style={{ gridTemplateColumns: cols }}
+            >
               <span role="cell" className="py-3 pl-6 text-muted tnum">
                 {g.rank}
               </span>
@@ -358,8 +417,12 @@ function RankedTable({ cards, listId, memberCount }: { cards: BoardCard[]; listI
                 <Link href={`/lists/${listId}/games/${g.id}`} className="flex items-center gap-3 hover:text-ink">
                   <Cover src={g.cover_url} title={g.title} className="w-9 shrink-0 rounded-[5px]" />
                   <span className="flex min-w-0 flex-col">
-                    <span className="truncate font-semibold">{g.title}</span>
+                    <span className="flex min-w-0 items-center gap-2">
+                      <span className="truncate font-semibold">{g.title}</span>
+                      {g.status === 'played' && <PlayedTag />}
+                    </span>
                     <span className="text-[12.5px] text-muted">
+                      {g.status === 'played' ? `Played ${shortDate(g.played_at)} · ` : ''}
                       {g.scored_count} of {g.member_count} scored
                     </span>
                   </span>

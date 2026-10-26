@@ -31,3 +31,24 @@ export function parseSuggest(html: string): SteamHit[] {
   }
   return hits
 }
+
+/** One app's artwork as Steam's store service (IStoreBrowseService/GetItems) describes it. */
+export type SteamAssets = {
+  asset_url_format?: string
+  library_capsule?: string
+  header?: string
+  main_capsule?: string
+}
+
+const ASSET_BASE = 'https://shared.akamai.steamstatic.com/store_item_assets/'
+
+/**
+ * Full image addresses from Steam's asset description. Newer games keep their art under a
+ * hashed folder, so this is the only reliable way to get their tall cover.
+ */
+export function assetUrls(a: SteamAssets | undefined | null): { cover: string | null; header: string | null } {
+  const fmt = a?.asset_url_format
+  if (!fmt || !fmt.includes('${FILENAME}')) return { cover: null, header: null }
+  const url = (file?: string) => (file ? ASSET_BASE + fmt.replace('${FILENAME}', file) : null)
+  return { cover: url(a.library_capsule), header: url(a.header) ?? url(a.main_capsule) }
+}

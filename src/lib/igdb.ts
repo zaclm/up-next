@@ -72,29 +72,23 @@ function toCandidate(g: IgdbGame, rank: number | null): Candidate {
 }
 
 /**
- * Three searches in one request: IGDB's own word search, names containing what was typed
- * (most-rated first), and names containing the start of the longest word, for typos.
+ * Two requests side by side: IGDB's own word search, and names containing what was typed or
+ * the start of its longest word (most-rated first, for typos). Plain /games requests: the
+ * combined "multiquery" form came back empty in production.
  */
 export async function searchIgdb(query: string): Promise<Candidate[]> {
   if (!igdbConfig()) return []
   const q = esc(query)
   const frag = igdbFragment(query)
-  let body = `query games "search" { search "${q}"; ${FIELDS} where version_parent = null; limit 20; };\n`
-  body += `query games "contains" { ${FIELDS} where name ~ *"${q}"* & version_parent = null; sort total_rating_count desc; limit 20; };\n`
-  if (frag) {
-    body += `query games "loose" { ${FIELDS} where name ~ *"${esc(frag)}"* & version_parent = null & total_rating_count > 5; sort total_rating_count desc; limit 40; };\n`
-  }
-  try {
-    const parts = (await post('multiquery', body)) as { name: string; result: IgdbGame[] }[]
-    const out: Candidate[] = []
-    for (const part of parts) {
-      part.result.forEach((g, i) => out.push(toCandidate(g, part.name === 'search' ? i : null)))
-    }
-    return out
-  } catch (e) {
-    // If the combined request is refused, fall back to the plain search that always worked.
-    console.error('[search] IGDB multiquery failed, using plain search:', (e as Error).message)
-    const games = (await post('games', `search "${q}"; ${FIELDS} where version_parent = null; limit 20;`)) as IgdbGame[]
-    return games.map((g, i) => toCandidate(g, i))
-  }
+  const contains = frag ? `(name ~ *"${q}"* | name ~ *"${esc(frag)}"*)` : `name ~ *"${q}"*`
+  const [search, named] = await Promise.allSettled([
+    post('games', `search "${q}"; ${FIELDS} where version_parent = null; limit 20;`) as Promise<IgdbGame[]>,
+    post('games', `${FIELDS} where ${contains} & version_parent = null; sort total_rating_count desc; limit 30;`) as Promise<IgdbGame[]>,
+  ])
+  if (search.status === 'rejected' && named.status === 'rejected') throw search.reason
+  for (const r of [search, named]) if (r.status === 'rejected') console.error('[search] IGDB request failed:', (r.reason as Error).message)
+  const out: Candidate[] = []
+  if (search.status === 'fulfilled') search.value.forEach((g, i) => out.push(toCandidate(g, i)))
+  if (named.status === 'fulfilled') named.value.forEach((g) => out.push(toCandidate(g, null)))
+  return out
 }

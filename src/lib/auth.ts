@@ -2,6 +2,7 @@ import 'server-only'
 import { cache } from 'react'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
+import { connection } from 'next/server'
 import { db } from './db'
 import { authMode } from './env'
 import { createSupabaseServer } from './supabase/server'
@@ -21,6 +22,9 @@ async function currentUserId(): Promise<string | null> {
   if (authMode() === 'dev') {
     return (await cookies()).get(DEV_COOKIE)?.value ?? null
   }
+  // Session checks read the clock, so they must run at request time, never while a page
+  // is being prerendered or prefetched.
+  await connection()
   const supabase = await createSupabaseServer()
   const { data } = await supabase.auth.getUser()
   return data.user?.id ?? null

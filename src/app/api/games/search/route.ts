@@ -3,7 +3,7 @@ import { getMe } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { searchIgdb, igdbEnabled } from '@/lib/igdb'
 import { emptyCandidate, looserQuery, mergeCandidates, rankCandidates, type Candidate } from '@/lib/search/rank'
-import { steamCover, steamHeader, steamSearch, steamSuggest, type SteamHit } from '@/lib/search/steam'
+import { steamArt, steamCover, steamSearch, steamSuggest, type SteamHit } from '@/lib/search/steam'
 import type { CatalogResult } from '@/lib/types'
 
 // Game search: Up Next's own games, Steam and IGDB are asked at the same time, the answers
@@ -26,7 +26,7 @@ function fromSteam(hits: SteamHit[], kind: 'suggest' | 'search', offset = 0): Ca
     ...emptyCandidate(h.name),
     steam_appid: h.appid,
     cover_url: steamCover(h.appid),
-    cover_fallback: steamHeader(h.appid),
+    cover_fallback: h.image,
     steamSuggestRank: kind === 'suggest' ? i + offset : null,
     steamSearchRank: kind === 'search' ? i + offset : null,
   }))
@@ -72,6 +72,24 @@ export async function GET(request: NextRequest) {
   const looseC = fromSteam(value(searchLoose, 'steam-loose', []), 'search', 3)
 
   const ranked = rankCandidates(q, mergeCandidates([localC, igdbC, suggestC, searchC, looseC]), 12)
+
+  // Games only Steam knows get their real cover: new games keep it at an address only
+  // Steam's store service can tell us.
+  const steamOnly = ranked.filter(({ c }) => c.steam_appid !== null && c.game_id === null && c.igdb_id === null)
+  if (steamOnly.length) {
+    try {
+      const art = await steamArt(steamOnly.map(({ c }) => c.steam_appid!))
+      for (const { c } of steamOnly) {
+        const a = art.get(c.steam_appid!)
+        if (a?.cover || a?.header) {
+          c.cover_url = a.cover ?? a.header
+          c.cover_fallback = a.header ?? c.cover_fallback
+        }
+      }
+    } catch (e) {
+      failed.push(`steam-art: ${(e as Error).message}`)
+    }
+  }
   const results: CatalogResult[] = ranked.map(({ c }) => ({
     key: c.game_id !== null ? `game-${c.game_id}` : c.igdb_id !== null ? `igdb-${c.igdb_id}` : `steam-${c.steam_appid}`,
     igdb_id: c.igdb_id,

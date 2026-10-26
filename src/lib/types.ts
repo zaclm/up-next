@@ -47,6 +47,8 @@ export type ListInfo = {
   needed: number
   /** Changes whenever the list picture changes; null means the default picture. */
   image_version: number | null
+  /** This member's "Played games" switch: rank played games together with unplayed ones. */
+  include_played: boolean
 }
 
 export type Member = {
@@ -71,6 +73,8 @@ export type Board = {
   list: ListInfo
   members: Member[]
   ranked: BoardCard[]
+  /** Unplayed and played games in one ranking (rank renumbered), for the "Played games" switch. */
+  ranked_all: BoardCard[]
   waiting: BoardCard[]
   blocked: BoardCard[]
   needs_score: BoardCard[]
