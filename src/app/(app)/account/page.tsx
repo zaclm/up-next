@@ -6,6 +6,7 @@ import { Avatar, SectionHeading, btn } from '@/components/ui'
 import { NameForm } from '@/components/name-form'
 import { InstallApp } from '@/components/install-app'
 import { LanguagePicker } from '@/components/language-picker'
+import { EmailRemindersSwitch } from '@/components/email-switch'
 import { getT } from '@/i18n/server'
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -30,6 +31,10 @@ export default async function AccountPage() {
       <section aria-labelledby="lang-h" className="flex flex-col gap-3">
         <SectionHeading id="lang-h" title={t.account.language} note={t.account.languageNote} />
         <LanguagePicker label={t.account.language} />
+      </section>
+      <section aria-labelledby="email-h" id="email" className="flex scroll-mt-6 flex-col gap-3">
+        <SectionHeading id="email-h" title={t.account.emailTitle} note={t.account.emailNote} />
+        <EmailRemindersSwitch on={me.emailReminders} />
       </section>
       <section aria-labelledby="app-h" className="flex flex-col gap-3">
         <SectionHeading id="app-h" title={t.account.install} note={t.account.installNote} />

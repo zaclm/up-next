@@ -267,7 +267,32 @@ select pg_temp.as_user('karim');
 select pg_temp.check(
   not exists (select 1 from jsonb_array_elements(public.score_queue()) q where q ->> 'title' = 'Helldivers 2'),
   'Karim, who already gave an After score, is not asked');
+
+-- Email reminders follow the same rule, minus whoever marked it played
+select pg_temp.check(
+  not exists (select 1 from public.after_email_recipients((select id from t_list), pg_temp.g('hd2'), pg_temp.uid('zac')) r
+              where r.user_id in (pg_temp.uid('zac'), pg_temp.uid('karim'))),
+  'no email to the person who marked it played, or to anyone who already gave an After score');
+select pg_temp.check(
+  exists (select 1 from public.after_email_recipients((select id from t_list), pg_temp.g('hd2'), pg_temp.uid('karim')) r
+          where r.user_id = pg_temp.uid('zac') and r.email = 'zac@test.local'),
+  'a member who still owes an After score gets an email');
 select pg_temp.as_user('zac');
+select public.set_email_reminders(false);
+select pg_temp.check(
+  not exists (select 1 from public.after_email_recipients((select id from t_list), pg_temp.g('hd2'), pg_temp.uid('karim')) r
+              where r.user_id = pg_temp.uid('zac')),
+  'turning email reminders off stops them');
+select public.set_email_reminders(true);
+insert into after_emails_sent (user_id, list_id, game_id) values (pg_temp.uid('zac'), (select id from t_list), pg_temp.g('hd2'));
+select pg_temp.check(
+  not exists (select 1 from public.after_email_recipients((select id from t_list), pg_temp.g('hd2'), pg_temp.uid('karim')) r
+              where r.user_id = pg_temp.uid('zac')),
+  'nobody gets the same reminder email twice');
+select pg_temp.check(
+  not has_function_privilege('authenticated', 'public.after_email_recipients(uuid, bigint, uuid)', 'execute')
+  and not has_function_privilege('anon', 'public.after_email_recipients(uuid, bigint, uuid)', 'execute'),
+  'email addresses can only be read by the server, never from the browser');
 select public.skip_after((select id from t_list), pg_temp.g('hd2'));
 select pg_temp.check(
   not exists (select 1 from jsonb_array_elements(public.score_queue()) q where q ->> 'title' = 'Helldivers 2'),

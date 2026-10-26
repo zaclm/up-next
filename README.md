@@ -114,6 +114,18 @@ Without these, search still uses Steam and the games already in the app, and pla
    - `NEXT_PUBLIC_SITE_URL` (your live address)
 3. Deploy. Do **not** add `AUTH_MODE`.
 
+### 7. Email reminders (optional, no domain needed)
+
+When a group marks a game "played together", everyone who still owes an After score gets one email, in their language, with a link straight to that game. Nobody gets the same reminder twice, the person who marked it gets none, and anyone can turn them off in Account → Email reminders. The same reminder always shows in To score, emails or not.
+
+Emails go out through a Gmail account:
+
+1. Use a separate Gmail account for the app if you can (friends see its address as the sender).
+2. Turn on 2-Step Verification for that account, then create an app password: Google Account → Security → 2-Step Verification → App passwords.
+3. In Vercel, add `GMAIL_USER` (the Gmail address) and `GMAIL_APP_PASSWORD` (the 16 letters), then redeploy.
+
+A personal Gmail account can send to about 500 people a day. With your own domain later, a service such as Resend can replace Gmail; only `src/lib/email.ts` changes. Each batch writes one `[email]` line to the server logs (the game, how many sent, how many failed).
+
 ---
 
 ## Where things are
@@ -137,5 +149,5 @@ The app speaks English, French and Arabic. A player's choice (Account → Langua
 
 ## What's next
 
-- **Phase 2:** done locally: After-score reminders, install to the home screen, French and Arabic. Still to come: email reminders (needs an email sender such as Resend).
+- **Phase 2:** live: After-score reminders in To score and by email, install to the home screen, French and Arabic.
 - **Phase 3:** Steam import (owned games and playtime, to fill "can play" and suggest After scores).

@@ -398,6 +398,10 @@ export const en = {
     saveName: 'Save name',
     language: 'Language',
     languageNote: 'For the whole app, on all your devices',
+    emailTitle: 'Email reminders',
+    emailNote: 'Sent to the address you sign in with',
+    emailLabel: 'Email me when my group plays a game together',
+    emailHint: 'One email per game, asking for your After score',
     install: 'Install the app',
     installNote: 'Keep Up Next on your home screen, like any other app',
     installed: 'Up Next is installed on this device.',
@@ -427,6 +431,17 @@ export const en = {
     toSignUp: 'New here? Create an account',
     toSignIn: 'Already have an account? Sign in',
     language: 'Language',
+  },
+
+  email: {
+    subject: (game: string) => `How was ${game}? Add your After score`,
+    heading: (game: string) => `How was ${game}?`,
+    body: (who: string, list: string) =>
+      `${who} marked it as played together in ${list}. Add your After score so it counts in your group's ranking.`,
+    button: 'Add your After score',
+    missed: 'Missed that session? Tap “Didn’t play” in To score and you won’t be asked again.',
+    footer: 'You get this because you’re in this list on Up Next.',
+    turnOff: 'Turn these emails off',
   },
 
   errors: {

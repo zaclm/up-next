@@ -434,6 +434,10 @@ export const ar: Messages = {
     saveName: 'حفظ الاسم',
     language: 'اللغة',
     languageNote: 'للتطبيق كله، على كل أجهزتك',
+    emailTitle: 'التذكير بالبريد الإلكتروني',
+    emailNote: 'يُرسل إلى البريد الذي تسجّل الدخول به',
+    emailLabel: 'راسلني عندما تلعب مجموعتي لعبة معًا',
+    emailHint: 'رسالة واحدة لكل لعبة، لطلب تقييمك «بعد»',
     install: 'تثبيت التطبيق',
     installNote: 'احتفظ بـ Up Next على شاشتك الرئيسية، مثل أي تطبيق آخر',
     installed: 'Up Next مثبّت على هذا الجهاز.',
@@ -463,6 +467,18 @@ export const ar: Messages = {
     toSignUp: 'جديد هنا؟ أنشئ حسابًا',
     toSignIn: 'لديك حساب؟ سجّل الدخول',
     language: 'اللغة',
+  },
+
+  // Emails: no isolation marks here, some mail apps show them as boxes.
+  email: {
+    subject: (game: string) => `كيف كانت ${game}؟ أضف تقييمك «بعد»`,
+    heading: (game: string) => `كيف كانت ${game}؟`,
+    body: (who: string, list: string) =>
+      `سجّل ${who} أنكم لعبتموها معًا في ${list}. أضف تقييمك «بعد» ليُحتسب في ترتيب المجموعة.`,
+    button: 'أضف تقييمك «بعد»',
+    missed: 'لم تكن معهم؟ اضغط «لم ألعبها» في «للتقييم» ولن نسألك مجددًا.',
+    footer: 'تصلك هذه الرسالة لأنك عضو في هذه القائمة على Up Next.',
+    turnOff: 'إيقاف هذه الرسائل',
   },
 
   errors: {

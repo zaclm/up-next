@@ -9,6 +9,8 @@ import { authMode } from '@/lib/env'
 import { createSupabaseServer } from '@/lib/supabase/server'
 import { isValidScore, safePath } from '@/lib/format'
 import { steamArt } from '@/lib/search/steam'
+import { sendAfterReminders } from '@/lib/email'
+import { after } from 'next/server'
 import { getT } from '@/i18n/server'
 import { LANG_COOKIE, isLocale } from '@/i18n/config'
 import type { Messages } from '@/i18n/messages'
@@ -231,12 +233,18 @@ export async function setListGameStatus(
   gameId: number,
   status: 'active' | 'played' | 'hidden',
 ): Promise<Result> {
-  const res = await run(async (tx) => {
+  const res = await run(async (tx, me) => {
     await tx`select public.set_list_game_status(${listId}::uuid, ${gameId}::bigint, ${status})`
-    return null
+    return me.id
   })
-  if (res.ok) refresh()
-  return res
+  if (!res.ok) return res
+  refresh()
+  if (status === 'played') {
+    const actor = res.data
+    // Emails go out after the response, so marking a game played stays instant.
+    after(() => sendAfterReminders(listId, gameId, actor).catch((e) => console.error('[email]', (e as Error).message)))
+  }
+  return { ok: true, data: null }
 }
 
 export async function removeListGame(listId: string, gameId: number) {
@@ -407,6 +415,16 @@ export async function updateProfileName(formData: FormData): Promise<Result> {
   const name = String(formData.get('name') ?? '').trim()
   const res = await run(async (tx) => {
     await tx`select public.update_profile(${name})`
+    return null
+  })
+  if (res.ok) refresh()
+  return res
+}
+
+/** Account → Email reminders. */
+export async function setEmailReminders(on: boolean): Promise<Result> {
+  const res = await run(async (tx) => {
+    await tx`select public.set_email_reminders(${on})`
     return null
   })
   if (res.ok) refresh()

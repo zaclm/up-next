@@ -16,6 +16,7 @@ export type Me = {
   hue: number
   avatarUrl: string | null
   locale: Locale | null
+  emailReminders: boolean
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -36,12 +37,21 @@ async function currentUserId(): Promise<string | null> {
 export const getMe = cache(async (): Promise<Me | null> => {
   const id = await currentUserId()
   if (!id || !UUID.test(id)) return null
-  const rows = await db()<{ id: string; display_name: string; avatar_hue: number; avatar_url: string | null; locale: string | null }[]>`
-    select id, display_name, avatar_hue, avatar_url, locale from public.profiles where id = ${id}
+  const rows = await db()<
+    { id: string; display_name: string; avatar_hue: number; avatar_url: string | null; locale: string | null; email_reminders: boolean }[]
+  >`
+    select id, display_name, avatar_hue, avatar_url, locale, email_reminders from public.profiles where id = ${id}
   `
   const p = rows[0]
   return p
-    ? { id: p.id, name: p.display_name, hue: p.avatar_hue, avatarUrl: p.avatar_url, locale: isLocale(p.locale) ? p.locale : null }
+    ? {
+        id: p.id,
+        name: p.display_name,
+        hue: p.avatar_hue,
+        avatarUrl: p.avatar_url,
+        locale: isLocale(p.locale) ? p.locale : null,
+        emailReminders: p.email_reminders,
+      }
     : null
 })
 

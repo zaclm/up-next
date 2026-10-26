@@ -405,6 +405,10 @@ export const fr: Messages = {
     saveName: 'Enregistrer le nom',
     language: 'Langue',
     languageNote: 'Pour toute l’appli, sur tous tes appareils',
+    emailTitle: 'Rappels par e-mail',
+    emailNote: 'Envoyés à l’adresse avec laquelle tu te connectes',
+    emailLabel: 'M’écrire quand mon groupe a joué à un jeu ensemble',
+    emailHint: 'Un e-mail par jeu, pour te demander ton score Après',
     install: 'Installer l’appli',
     installNote: 'Garde Up Next sur ton écran d’accueil, comme n’importe quelle appli',
     installed: 'Up Next est installé sur cet appareil.',
@@ -434,6 +438,17 @@ export const fr: Messages = {
     toSignUp: `Nouveau ici${nb}? Crée un compte`,
     toSignIn: `Déjà un compte${nb}? Connecte-toi`,
     language: 'Langue',
+  },
+
+  email: {
+    subject: (game: string) => `Comment c’était, ${game}${nb}? Ajoute ton score Après`,
+    heading: (game: string) => `Comment c’était, ${game}${nb}?`,
+    body: (who: string, list: string) =>
+      `${who} l’a marqué comme joué ensemble dans ${list}. Ajoute ton score Après pour qu’il compte dans le classement du groupe.`,
+    button: 'Ajouter mon score Après',
+    missed: `Tu n’étais pas là${nb}? Appuie sur «${nb}Pas joué${nb}» dans À noter et on ne te le demandera plus.`,
+    footer: 'Tu reçois cet e-mail parce que tu es dans cette liste sur Up Next.',
+    turnOff: 'Ne plus recevoir ces e-mails',
   },
 
   errors: {
