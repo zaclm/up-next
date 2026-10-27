@@ -1,7 +1,7 @@
 import { Suspense } from 'react'
 import { BottomNav, Sidebar } from '@/components/nav'
 import { requireMe } from '@/lib/auth'
-import { getMyLists, getQueue } from '@/lib/data'
+import { getInvites, getMyLists, getQueue } from '@/lib/data'
 import { PageSkeleton } from '@/components/skeletons'
 import { LocaleRoot } from '@/i18n/root'
 
@@ -9,7 +9,7 @@ export const instant = false
 
 async function Chrome() {
   const me = await requireMe()
-  const [lists, queue] = await Promise.all([getMyLists(), getQueue()])
+  const [lists, queue, invites] = await Promise.all([getMyLists(), getQueue(), getInvites()])
   const links = lists.map((l) => ({
     id: l.id,
     name: l.name,
@@ -20,8 +20,8 @@ async function Chrome() {
   const firstListId = lists[0]?.id ?? null
   return (
     <>
-      <Sidebar lists={links} queueCount={queue.length} me={me} firstListId={firstListId} />
-      <BottomNav queueCount={queue.length} firstListId={firstListId} lists={links} />
+      <Sidebar lists={links} queueCount={queue.length} inviteCount={invites.length} me={me} firstListId={firstListId} />
+      <BottomNav queueCount={queue.length} inviteCount={invites.length} firstListId={firstListId} lists={links} />
     </>
   )
 }

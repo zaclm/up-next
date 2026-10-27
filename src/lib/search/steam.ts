@@ -8,6 +8,7 @@ import 'server-only'
 // how often one server may ask.
 
 import { assetUrls, cleanSteamName, parseSuggest, type SteamAssets, type SteamHit } from './steam-parse'
+import { steamApiBase } from '@/lib/connect/config'
 export type { SteamHit }
 
 const TTL = 15 * 60 * 1000
@@ -83,7 +84,7 @@ export async function steamArt(appids: number[]) {
       context: { language: 'english', country_code: 'US' },
       data_request: { include_assets: true },
     }
-    const res = await get('https://api.steampowered.com/IStoreBrowseService/GetItems/v1?input_json=' + encodeURIComponent(JSON.stringify(input)))
+    const res = await get(`${steamApiBase()}/IStoreBrowseService/GetItems/v1?input_json=` + encodeURIComponent(JSON.stringify(input)))
     const body = (await res.json()) as { response?: { store_items?: { appid: number; assets?: SteamAssets }[] } }
     for (const item of body.response?.store_items ?? []) {
       const value = assetUrls(item.assets)

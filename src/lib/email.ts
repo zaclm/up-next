@@ -3,14 +3,14 @@ import nodemailer, { type Transporter } from 'nodemailer'
 import { db } from './db'
 import { siteUrl } from './env'
 import { dictionaries } from '@/i18n/messages'
-import { dirOf, isLocale, type Locale } from '@/i18n/config'
+import { dirOf, intlLocale, isLocale, type Locale } from '@/i18n/config'
 
-// Email reminders, sent through a Gmail account (no domain needed):
+// Emails (After-score reminders and list invites), sent through a Gmail account (no domain needed):
 //   GMAIL_USER=the Gmail address the emails come from
 //   GMAIL_APP_PASSWORD=a 16-letter app password for that account (Google Account → Security →
 //     2-Step Verification → App passwords)
-// Without both, no email is sent and the app works as before (reminders stay in To score).
-// Local testing: EMAIL_TRANSPORT=log prints each email to the server log instead of sending it.
+// Without both, no email is sent and the app works as before (reminders stay in To score,
+// invites on Lists). Local testing: EMAIL_TRANSPORT=log prints each email to the server log.
 
 type Config = { kind: 'gmail'; user: string; pass: string } | { kind: 'log' }
 
@@ -42,31 +42,56 @@ async function saveCopy(dir: string, name: string, html: string) {
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!)
 
-export type AfterReminder = { locale: Locale; game: string; list: string; who: string; link: string; accountLink: string }
+type Message = { subject: string; text: string; html: string }
+type Layout = { locale: Locale; heading: string; body: string; button: string; link: string; note?: string; accountLink: string }
 
-/** The After-score reminder in the reader's language: subject, plain text and HTML. */
-export function afterReminderEmail({ locale, game, list, who, link, accountLink }: AfterReminder) {
+/** One email in the reader's language: a heading, a sentence, a button and a footer to turn emails off. */
+function layout({ locale, heading, body, button, link, note, accountLink }: Layout) {
   const t = dictionaries[locale].email
   const dir = dirOf(locale)
   const align = dir === 'rtl' ? 'right' : 'left'
-  const subject = t.subject(game)
-  const text = [t.heading(game), '', t.body(who, list), '', `${t.button}: ${link}`, '', t.missed, '', `${t.footer} ${t.turnOff}: ${accountLink}`].join('\n')
+  const text = [heading, '', body, '', `${button}: ${link}`, ...(note ? ['', note] : []), '', `${t.footer} ${t.turnOff}: ${accountLink}`].join('\n')
   const html = `<!doctype html>
 <html lang="${locale}" dir="${dir}">
 <body style="margin:0;padding:24px 12px;background:#f3f4f6;font-family:Arial,'Segoe UI',Tahoma,sans-serif;color:#17191e">
   <div dir="${dir}" style="max-width:480px;margin:0 auto;background:#ffffff;border-radius:16px;padding:28px 24px;text-align:${align}">
     <div dir="ltr" style="font-weight:700;font-size:15px;color:#4d6b00;margin-bottom:18px;text-align:${align}">&#187; Up Next</div>
-    <h1 style="font-size:22px;line-height:28px;margin:0 0 12px">${esc(t.heading(game))}</h1>
-    <p style="font-size:15px;line-height:22px;margin:0 0 22px;color:#3a3f4a">${esc(t.body(who, list))}</p>
-    <a href="${esc(link)}" style="display:inline-block;background:#c6f432;color:#0e0f12;font-weight:700;font-size:15px;text-decoration:none;padding:12px 18px;border-radius:10px">${esc(t.button)}</a>
-    <p style="font-size:13px;line-height:19px;margin:22px 0 0;color:#6f7480">${esc(t.missed)}</p>
+    <h1 style="font-size:22px;line-height:28px;margin:0 0 12px">${esc(heading)}</h1>
+    <p style="font-size:15px;line-height:22px;margin:0 0 22px;color:#3a3f4a">${esc(body)}</p>
+    <a href="${esc(link)}" style="display:inline-block;background:#c6f432;color:#0e0f12;font-weight:700;font-size:15px;text-decoration:none;padding:12px 18px;border-radius:10px">${esc(button)}</a>
+    ${note ? `<p style="font-size:13px;line-height:19px;margin:22px 0 0;color:#6f7480">${esc(note)}</p>` : ''}
   </div>
   <p dir="${dir}" style="max-width:480px;margin:14px auto 0;font-size:12px;line-height:18px;color:#8e939e;text-align:center">
     ${esc(t.footer)} <a href="${esc(accountLink)}" style="color:#6f7480">${esc(t.turnOff)}</a>
   </p>
 </body>
 </html>`
-  return { subject, text, html }
+  return { text, html }
+}
+
+export type AfterReminder = { locale: Locale; game: string; list: string; who: string; link: string; accountLink: string }
+
+/** The After-score reminder in the reader's language: subject, plain text and HTML. */
+export function afterReminderEmail({ locale, game, list, who, link, accountLink }: AfterReminder): Message {
+  const t = dictionaries[locale].email
+  return {
+    subject: t.subject(game),
+    ...layout({ locale, heading: t.heading(game), body: t.body(who, list), button: t.button, link, note: t.missed, accountLink }),
+  }
+}
+
+async function deliver(cfg: Config, to: { name: string; address: string }, locale: Locale, message: Message) {
+  const from = cfg.kind === 'gmail' ? { name: 'Up Next', address: cfg.user } : 'Up Next <upnext@localhost>'
+  const result = await transportFor(cfg).sendMail({ from, to, ...message })
+  if (cfg.kind === 'log') {
+    console.log('[email] (log)', JSON.stringify({ to: to.name, locale, subject: message.subject, size: String(result.message).length }))
+    if (process.env.EMAIL_LOG_DIR) await saveCopy(process.env.EMAIL_LOG_DIR, `${to.name}-${locale}-${message.subject.slice(0, 24)}`, message.html)
+  }
+}
+
+const links = () => {
+  const base = siteUrl().replace(/\/$/, '')
+  return { base, accountLink: `${base}/account#email` }
 }
 
 /**
@@ -90,22 +115,15 @@ export async function sendAfterReminders(listId: string, gameId: number, actorId
     select * from public.after_email_recipients(${listId}::uuid, ${gameId}::bigint, ${actorId}::uuid)`
   if (!people.length) return
 
-  const base = siteUrl().replace(/\/$/, '')
+  const { base, accountLink } = links()
   const link = `${base}/lists/${listId}/games/${gameId}?played=1`
-  const accountLink = `${base}/account#email`
-  const transport = transportFor(cfg)
-  const from = cfg.kind === 'gmail' ? { name: 'Up Next', address: cfg.user } : 'Up Next <upnext@localhost>'
   let sent = 0
   let failed = 0
   for (const person of people) {
     const locale: Locale = isLocale(person.locale) ? person.locale : 'en'
-    const message = afterReminderEmail({ locale, game: info.game, list: info.list, who: info.who, link, accountLink })
     try {
-      const result = await transport.sendMail({ from, to: { name: person.name, address: person.email }, ...message })
-      if (cfg.kind === 'log') {
-        console.log('[email] (log)', JSON.stringify({ to: person.name, locale, subject: message.subject, size: String(result.message).length }))
-        if (process.env.EMAIL_LOG_DIR) await saveCopy(process.env.EMAIL_LOG_DIR, `${person.name}-${locale}`, message.html)
-      }
+      const message = afterReminderEmail({ locale, game: info.game, list: info.list, who: info.who, link, accountLink })
+      await deliver(cfg, { name: person.name, address: person.email }, locale, message)
       await sql`
         insert into public.after_emails_sent (user_id, list_id, game_id)
         values (${person.user_id}::uuid, ${listId}::uuid, ${gameId}::bigint)
@@ -117,4 +135,38 @@ export async function sendAfterReminders(listId: string, gameId: number, actorId
     }
   }
   console.log('[email] after-score reminders', JSON.stringify({ game: info.game, sent, failed }))
+}
+
+/** "Zac invited you to Squad Night": sent when someone is invited from Find friends. */
+export async function sendInviteEmail(listId: string, toUser: string, fromUser: string): Promise<void> {
+  const cfg = emailConfig()
+  if (!cfg) return
+  const sql = db()
+  const [row] = await sql<{ email: string; name: string; locale: string | null; list_name: string; from_name: string }[]>`
+    select * from public.invite_email_info(${listId}::uuid, ${toUser}::uuid, ${fromUser}::uuid)`
+  if (!row) return
+  const [members] = await sql<{ names: string[] }[]>`
+    select coalesce(array_agg(p.display_name order by m.joined_at), '{}') as names
+    from public.list_members m join public.profiles p on p.id = m.user_id where m.list_id = ${listId}::uuid`
+  const locale: Locale = isLocale(row.locale) ? row.locale : 'en'
+  const t = dictionaries[locale].email
+  const names = new Intl.ListFormat(intlLocale(locale), { type: 'conjunction' }).format(members?.names ?? [])
+  const { base, accountLink } = links()
+  const message: Message = {
+    subject: t.inviteSubject(row.from_name, row.list_name),
+    ...layout({
+      locale,
+      heading: t.inviteHeading(row.list_name),
+      body: t.inviteBody(row.from_name, names),
+      button: t.inviteButton,
+      link: `${base}/lists`,
+      accountLink,
+    }),
+  }
+  try {
+    await deliver(cfg, { name: row.name, address: row.email }, locale, message)
+    console.log('[email] invite sent')
+  } catch (e) {
+    console.error('[email] invite failed:', (e as Error).message)
+  }
 }

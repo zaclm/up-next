@@ -32,6 +32,11 @@ const waitingForYou = (n: number) =>
     other: '{n} لعبة تنتظر',
   })
 
+const hours = (n: number) =>
+  plural('ar', n, { one: 'ساعة واحدة', two: 'ساعتان', few: '{n} ساعات', many: '{n} ساعة', other: '{n} ساعة' })
+const minutes = (n: number) =>
+  plural('ar', n, { one: 'دقيقة واحدة', two: 'دقيقتان', few: '{n} دقائق', many: '{n} دقيقة', other: '{n} دقيقة' })
+
 export const ar: Messages = {
   meta: {
     tagline: 'قيّم الألعاب قبل أن تلعبها وبعدها، ودع مجموعتك تقرّر ما ستلعبونه بعد ذلك.',
@@ -44,6 +49,7 @@ export const ar: Messages = {
     library: 'مكتبتي',
     addGame: 'إضافة لعبة',
     account: 'الحساب',
+    friends: 'البحث عن أصدقاء',
     join: 'الانضمام إلى قائمة',
   },
 
@@ -89,6 +95,9 @@ export const ar: Messages = {
     allScored: 'تم تقييم الكل',
     toScoreCount: (n: number) => `${n} للتقييم`,
     newInLists: (n: number) => `${newGames(n)} في قوائمك`,
+    friends: 'البحث عن أصدقاء',
+    invites: (n: number) =>
+      plural('ar', n, { one: 'دعوة واحدة', two: 'دعوتان', few: '{n} دعوات', many: '{n} دعوة', other: '{n} دعوة' }),
   },
 
   lists: {
@@ -295,6 +304,11 @@ export const ar: Messages = {
     intro: 'ألعاب في قوائمك لم تقيّمها بعد. تظهر أرقام الآخرين بعد أن تقيّم.',
     caughtUp: 'لا شيء ينتظرك',
     caughtUpBody: 'عندما يضيف صديق لعبة لم تقيّمها، أو تنهي مجموعتك لعبة، تظهر هنا.',
+    steamTitle: 'لعبتها على Steam',
+    steamNote: 'قضيت وقتًا في هذه الألعاب. كيف كانت؟',
+    lastPlayed: (date: string) => `آخر لعب ${date}`,
+    notNow: 'ليس الآن',
+    notNowAria: (title: string) => `ليس الآن: ${iso(title)}`,
     afterTitle: 'أضف تقييمك «بعد»',
     afterNote: 'لعبتها مجموعتك معًا. كيف كانت فعلًا؟',
     needsScore: 'تنتظر تقييمك',
@@ -328,6 +342,7 @@ export const ar: Messages = {
     search: 'ابحث في مكتبتك',
     filterByCategory: 'تصفية حسب الفئة',
     all: 'الكل',
+    notScored: 'بلا تقييم',
     select: 'تحديد',
     done: 'تم',
     view: 'العرض',
@@ -368,6 +383,91 @@ export const ar: Messages = {
     panelNote: 'تُضاف تقييماتك معها. الأصدقاء الذين لم يقيّموا لعبة يجدونها في «للتقييم».',
     alreadyHad: 'هذه القوائم فيها هذه الألعاب أصلًا.',
     addedAcross: (n: number, l: number) => `أُضيفت ${games(n)} إلى ${lists(l)}.`,
+  },
+
+  steam: {
+    title: 'Steam',
+    note: 'استورد الألعاب التي تملكها وابحث عن أصدقائك على Steam',
+    connect: 'ربط Steam',
+    connectHint: 'تسجّل الدخول في صفحة Steam نفسها؛ لا يرى Up Next كلمة مرورك أبدًا. بعدها يمكن لأصدقائك على Steam الذين يستخدمون Up Next أن يجدوك.',
+    connectedAs: (name: string) => `مربوط باسم ${iso(name)}`,
+    gameCount: (n: number) => `${games(n)} من Steam`,
+    lastSynced: (date: string) => `آخر مزامنة ${date}`,
+    syncAgain: 'مزامنة من جديد',
+    syncing: 'جارٍ المزامنة…',
+    disconnect: 'فصل Steam',
+    yesDisconnect: 'نعم، افصله',
+    disconnectNote: 'الألعاب الموجودة في مكتبتك تبقى.',
+    privateBody:
+      'لم يشارك Steam ألعابك: تفاصيل ألعابك خاصة. في Steam افتح الملف الشخصي ← تعديل الملف الشخصي ← إعدادات الخصوصية، واجعل «تفاصيل الألعاب» عامة، ثم اضغط «مزامنة من جديد».',
+    emptyBody: 'يقول Steam إن هذا الحساب بلا ألعاب. إن كان هذا خطأ، انتظر دقيقة واضغط «مزامنة من جديد».',
+    errorBody: 'لم يردّ Steam في المرة الأخيرة. جرّب المزامنة بعد قليل.',
+    noKey: 'حسابك على Steam مربوط. استيراد الألعاب غير مفعّل في التطبيق بعد؛ سيتم تلقائيًا عند تفعيله.',
+    synced: (added: number, total: number) =>
+      added
+        ? `أُضيفت ${games(added)} من Steam (${total} إجمالًا). إنها في مكتبتك على أنها «أستطيع لعبها».`
+        : `محدّثة: كل الألعاب (${total}) كانت في مكتبتك.`,
+    results: {
+      imported: (n: number) =>
+        n ? `تم ربط Steam. أُضيفت ${games(n)} إلى مكتبتك على أنها «أستطيع لعبها».` : 'تم ربط Steam. مكتبتك فيها كل ألعابك أصلًا.',
+      private: 'تم ربط Steam، لكن تفاصيل ألعابك خاصة، فلم يُستورد شيء بعد.',
+      empty: 'تم ربط Steam، لكن Steam يقول إن هذا الحساب بلا ألعاب.',
+      taken: 'حساب Steam هذا مربوط أصلًا بلاعب آخر على Up Next.',
+      cancelled: 'أُلغي تسجيل الدخول إلى Steam.',
+      failed: 'لم يستطع Steam تأكيد تسجيل الدخول. حاول مجددًا.',
+      expired: 'استغرق ذلك وقتًا طويلًا. اضغط «ربط Steam» من جديد.',
+      'no-key': 'تم ربط Steam. استيراد الألعاب غير مفعّل في التطبيق بعد.',
+      error: 'تم ربط Steam، لكن Steam لم يردّ. جرّب المزامنة بعد قليل.',
+      'not-linked': 'اربط Steam أولًا.',
+    },
+    syncFailed: {
+      'no-key': 'استيراد الألعاب من Steam غير مفعّل في التطبيق بعد.',
+      'not-linked': 'اربط Steam أولًا.',
+      error: 'لم يردّ Steam. حاول مجددًا بعد قليل.',
+    },
+    playtime: (min: number) => (min < 60 ? `${minutes(min)} على Steam` : `${hours(Math.round(min / 60))} على Steam`),
+  },
+
+  discord: {
+    title: 'خوادم Discord',
+    note: 'لا يشارك Discord قوائم الأصدقاء، لذا يمكن لـ Up Next أن يقترح أشخاصًا من خوادمك الصغيرة (100 عضو أو أقل) فعّلوا هذا أيضًا. الخوادم الكبيرة تُتجاهل.',
+    connect: 'ابحث عن أصدقاء من خوادمي على Discord',
+    connected: (n: number) =>
+      `مفعّل: ${plural('ar', n, { one: 'خادم صغير واحد', two: 'خادمان صغيران', few: '{n} خوادم صغيرة', many: '{n} خادمًا صغيرًا', other: '{n} خادم صغير' })}`,
+    disconnect: 'إيقاف',
+    results: {
+      connected: 'تم. يظهر أدناه الأشخاص من خوادمك الصغيرة على Discord الذين يستخدمون Up Next.',
+      cancelled: 'أُلغي Discord.',
+      failed: 'لم يردّ Discord. حاول مجددًا.',
+      expired: 'استغرق ذلك وقتًا طويلًا. حاول مجددًا.',
+      'no-key': 'البحث عن أصدقاء عبر Discord غير مفعّل في التطبيق بعد.',
+    },
+  },
+
+  friends: {
+    title: 'البحث عن أصدقاء',
+    subtitle: 'أصدقاؤك على Steam وأعضاء خوادمك على Discord الذين يستخدمون Up Next',
+    steamTitle: 'أصدقاء Steam على Up Next',
+    steamConnectFirst: 'اربط Steam لترى أيّ أصدقائك على Steam يستخدمون Up Next.',
+    steamNone: 'لا أحد من أصدقائك على Steam يستخدم Up Next بعد، أو قائمة أصدقائك خاصة على Steam. أرسل لهم رابط دعوة من إعدادات قائمة.',
+    discordTitle: 'من خوادمك على Discord',
+    discordNone: 'لم يفعّل أحد من خوادمك الصغيرة هذا بعد.',
+    viaSteam: (name: string) => `على Steam باسم ${iso(name)}`,
+    viaServers: (names: string) => `على Discord في ${iso(names)}`,
+    inviteTo: 'دعوة إلى',
+    invited: 'تمت الدعوة',
+    inAll: 'موجود في كل قوائمك',
+    noLists: 'أنشئ قائمة أولًا، ثم ادعُ أصدقاءك إليها.',
+    sent: (name: string, list: string) => `تمت دعوة ${iso(name)} إلى ${iso(list)}.`,
+    linkTip: 'أصدقاء ليسوا هنا بعد؟ أرسل لهم رابط الدعوة من إعدادات قائمة.',
+  },
+
+  invites: {
+    title: 'الدعوات',
+    from: (from: string, list: string) => `دعاك ${iso(from)} إلى ${iso(list)}`,
+    with: (names: string) => `مع ${iso(names)}`,
+    join: 'انضمام',
+    decline: 'لا، شكرًا',
   },
 
   libraryGame: {
@@ -436,8 +536,8 @@ export const ar: Messages = {
     languageNote: 'للتطبيق كله، على كل أجهزتك',
     emailTitle: 'التذكير بالبريد الإلكتروني',
     emailNote: 'يُرسل إلى البريد الذي تسجّل الدخول به',
-    emailLabel: 'راسلني عندما تلعب مجموعتي لعبة معًا',
-    emailHint: 'رسالة واحدة لكل لعبة، لطلب تقييمك «بعد»',
+    emailLabel: 'راسلني بشأن قوائمي',
+    emailHint: 'عندما تلعب مجموعتك لعبة معًا، أو يدعوك صديق إلى قائمة',
     install: 'تثبيت التطبيق',
     installNote: 'احتفظ بـ Up Next على شاشتك الرئيسية، مثل أي تطبيق آخر',
     installed: 'Up Next مثبّت على هذا الجهاز.',
@@ -479,6 +579,11 @@ export const ar: Messages = {
     missed: 'لم تكن معهم؟ اضغط «لم ألعبها» في «للتقييم» ولن نسألك مجددًا.',
     footer: 'تصلك هذه الرسالة لأنك عضو في هذه القائمة على Up Next.',
     turnOff: 'إيقاف هذه الرسائل',
+    inviteSubject: (from: string, list: string) => `دعاك ${from} إلى ${list} على Up Next`,
+    inviteHeading: (list: string) => `هل تنضم إلى ${list}؟`,
+    inviteBody: (from: string, members: string) =>
+      `دعاك ${from} إلى قائمته على Up Next، مع ${members}. تقييماتكم معًا تقرّر ما ستلعبونه بعد ذلك.`,
+    inviteButton: 'عرض الدعوة',
   },
 
   errors: {
@@ -513,5 +618,8 @@ export const ar: Messages = {
     errorBody: 'لم يكتمل التحميل. تقييماتك في أمان. حاول مجددًا بعد قليل.',
     errorId: (id: string) => `رقم الخطأ: ${id}`,
     tryAgain: 'حاول مجددًا',
+    connectSteamFirst: 'اربط Steam أولًا.',
+    steamTaken: 'حساب Steam هذا مربوط أصلًا بلاعب آخر على Up Next.',
+    cantInvite: 'يمكنك دعوة الأصدقاء الظاهرين في «البحث عن أصدقاء» فقط.',
   },
 }

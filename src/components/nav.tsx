@@ -31,18 +31,21 @@ function useActive() {
     upNext: path === '/' || /^\/lists\/[^/]+(\/(games|settings).*)?$/.test(path),
     score: path.startsWith('/score'),
     library: path.startsWith('/library'),
-    lists: path === '/lists' || path.startsWith('/join'),
+    lists: path === '/lists' || path.startsWith('/join') || path.startsWith('/friends'),
+    friends: path.startsWith('/friends'),
   }
 }
 
 export function Sidebar({
   lists,
   queueCount,
+  inviteCount,
   me,
   firstListId,
 }: {
   lists: ListLink[]
   queueCount: number
+  inviteCount: number
   me: { name: string; hue: number; avatarUrl: string | null }
   firstListId: string | null
 }) {
@@ -77,6 +80,10 @@ export function Sidebar({
           <Icon.library size={18} />
           {t.nav.library}
         </Link>
+        <Link href="/friends" className={item(a.friends)} aria-current={a.friends ? 'page' : undefined}>
+          <Icon.userPlus size={18} />
+          {t.nav.friends}
+        </Link>
       </nav>
 
       <section aria-labelledby="side-lists" className="flex flex-col gap-2">
@@ -88,6 +95,12 @@ export function Sidebar({
             <Icon.plus size={16} />
           </Link>
         </div>
+        {inviteCount > 0 && (
+          <Link href="/lists#invites" className="flex min-h-9 items-center gap-2 self-start rounded-lg bg-accent-tint px-2.5 text-[13px] font-semibold text-accent">
+            <Icon.userPlus size={16} />
+            {t.nav.invites(inviteCount)}
+          </Link>
+        )}
         <div className="flex flex-col gap-0.5">
           {lists.map((l) => {
             const on = a.path.startsWith(`/lists/${l.id}`)
@@ -124,7 +137,17 @@ export function Sidebar({
   )
 }
 
-export function BottomNav({ queueCount, firstListId, lists }: { queueCount: number; firstListId: string | null; lists: ListLink[] }) {
+export function BottomNav({
+  queueCount,
+  inviteCount,
+  firstListId,
+  lists,
+}: {
+  queueCount: number
+  inviteCount: number
+  firstListId: string | null
+  lists: ListLink[]
+}) {
   const a = useActive()
   const t = useT()
   const newFor = useNewCounts(lists, a.path)
@@ -144,7 +167,7 @@ export function BottomNav({ queueCount, firstListId, lists }: { queueCount: numb
         <Icon.star size={22} className={a.score ? 'text-accent' : undefined} />
         {t.nav.toScore}
         {queueCount > 0 && (
-          <span className="absolute top-0.5 left-[calc(50%+6px)] flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-accent px-1 text-[11px] font-bold text-ground">
+          <span className="absolute top-0.5 start-[calc(50%+6px)] flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-accent px-1 text-[11px] font-bold text-ground">
             {queueCount}
           </span>
         )}
@@ -156,13 +179,22 @@ export function BottomNav({ queueCount, firstListId, lists }: { queueCount: numb
       <Link href="/lists" className={tab(a.lists)} aria-current={a.lists ? 'page' : undefined}>
         <Icon.people size={22} className={a.lists ? 'text-accent' : undefined} />
         {t.nav.lists}
-        {newTotal > 0 && (
+        {inviteCount > 0 ? (
           <span
-            aria-label={t.nav.newInLists(newTotal)}
-            className="absolute top-0.5 left-[calc(50%+6px)] flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#ef4444] px-1 text-[11px] font-bold text-white"
+            aria-label={t.nav.invites(inviteCount)}
+            className="absolute top-0.5 start-[calc(50%+6px)] flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-accent px-1 text-[11px] font-bold text-ground"
           >
-            {newTotal > 9 ? '9+' : newTotal}
+            {inviteCount}
           </span>
+        ) : (
+          newTotal > 0 && (
+            <span
+              aria-label={t.nav.newInLists(newTotal)}
+              className="absolute top-0.5 start-[calc(50%+6px)] flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#ef4444] px-1 text-[11px] font-bold text-white"
+            >
+              {newTotal > 9 ? '9+' : newTotal}
+            </span>
+          )
         )}
       </Link>
     </nav>

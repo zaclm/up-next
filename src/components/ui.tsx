@@ -138,6 +138,29 @@ export const Icon = {
     </>,
   ),
   plus: icon(<path d="M12 5v14M5 12h14" />, { strokeWidth: 2 }),
+  refresh: icon(
+    <>
+      <path d="M20 11a8 8 0 0 0-14.6-4.5L4 8" />
+      <path d="M4 4v4h4" />
+      <path d="M4 13a8 8 0 0 0 14.6 4.5L20 16" />
+      <path d="M20 20v-4h-4" />
+    </>,
+  ),
+  userPlus: icon(
+    <>
+      <circle cx="10" cy="8" r="3.5" />
+      <path d="M3.5 20c.8-3.5 3.4-5.5 6.5-5.5 1.6 0 3 .5 4.2 1.4" />
+      <path d="M18 14v6M15 17h6" />
+    </>,
+  ),
+  steam: icon(
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <circle cx="15.5" cy="9.5" r="2.5" />
+      <circle cx="9" cy="15" r="1.8" />
+      <path d="M3.5 13.2l4 1.6M10.6 14.2l3-2.6" />
+    </>,
+  ),
   back: icon(<path d="M15 6l-6 6 6 6" />, { strokeWidth: 2 }),
   close: icon(<path d="M6 6l12 12M18 6L6 18" />, { strokeWidth: 2 }),
   chevronDown: icon(<path d="M6 9l6 6 6-6" />, { strokeWidth: 2 }),

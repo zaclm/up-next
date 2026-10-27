@@ -44,6 +44,10 @@ export default async function ListSettingsPage({ params }: { params: Promise<{ l
       <section aria-labelledby="invite-h" id="invite" className="flex scroll-mt-6 flex-col gap-3">
         <SectionHeading id="invite-h" title={t.settings.invite} />
         <InviteBox listId={listId} code={list.invite_code} canReset={list.is_creator} />
+        <Link href="/friends" className="flex min-h-11 items-center gap-2 self-start text-[13.5px] text-soft hover:text-ink">
+          <Icon.userPlus size={18} />
+          {t.nav.friends}
+        </Link>
       </section>
 
       <section aria-labelledby="mem-h" className="flex flex-col gap-3">

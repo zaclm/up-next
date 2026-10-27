@@ -150,6 +150,7 @@ export type LibraryGame = {
   personal: number | null
   can_play: boolean
   added_at: string
+  steam_min: number | null
   categories: { id: number; name: string }[]
   lists: { id: string; name: string }[]
 }
@@ -173,4 +174,46 @@ export type CatalogResult = {
   /** Players in Up Next who have this game (only for games already in Up Next). */
   players: number
   source: 'upnext' | 'steam' | 'igdb'
+}
+
+export type Connections = {
+  steam: {
+    steam_id: string
+    name: string | null
+    avatar_url: string | null
+    linked_at: string
+    synced_at: string | null
+    status: 'ok' | 'private' | 'empty' | 'error' | null
+    game_count: number
+    friend_count: number
+  } | null
+  discord: { linked_at: string; server_count: number } | null
+}
+
+export type SteamNudge = {
+  id: number
+  title: string
+  cover_url: string | null
+  playtime_min: number
+  last_played_at: string | null
+  in_lists: boolean
+}
+
+export type FriendSuggestion = {
+  id: string
+  name: string
+  hue: number
+  avatar_url: string | null
+  steam_name: string | null
+  servers: string[]
+  in_lists: string[]
+  invited_lists: string[]
+}
+
+export type ListInvite = {
+  list_id: string
+  list_name: string
+  from_name: string
+  member_names: string[]
+  created_at: string
 }

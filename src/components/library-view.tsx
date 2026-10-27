@@ -41,7 +41,7 @@ export function LibraryView({
   const t = useT()
   const sortName = t.library.sort
   const [view, setView] = useState<View>('grid')
-  const [cat, setCat] = useState<number | 'all'>('all')
+  const [cat, setCat] = useState<number | 'all' | 'unscored'>('all')
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: 'score', dir: -1 })
   const [selecting, setSelecting] = useState(Boolean(preselectList))
@@ -69,7 +69,9 @@ export function LibraryView({
   const shown = useMemo(() => {
     const q = query.trim().toLowerCase()
     return games
-      .filter((g) => cat === 'all' || g.categories.some((c) => c.id === cat))
+      .filter((g) =>
+        cat === 'all' ? true : cat === 'unscored' ? g.before === null && g.after === null : g.categories.some((c) => c.id === cat),
+      )
       .filter((g) => !q || g.title.toLowerCase().includes(q))
       .slice()
       .sort((a, b) => {
@@ -109,6 +111,7 @@ export function LibraryView({
     ? `${sortName[sort.key]}, ${sort.dir === 1 ? t.library.az : t.library.za}`
     : `${sortName[sort.key]}, ${sort.dir === -1 ? t.library.highFirst : t.library.lowFirst}`
   const pickedGames = games.filter((g) => picked.has(g.id))
+  const unscored = games.filter((g) => g.before === null && g.after === null).length
   const preselectName = lists.find((l) => l.id === preselectList)?.name
 
   const chip = (on: boolean) =>
@@ -140,6 +143,11 @@ export function LibraryView({
           <button type="button" aria-pressed={cat === 'all'} onClick={() => setCat('all')} className={chip(cat === 'all')}>
             {t.library.all} <span className={cat === 'all' ? 'text-[#4a4f59]' : 'text-muted'}>{games.length}</span>
           </button>
+          {unscored > 0 && (
+            <button type="button" aria-pressed={cat === 'unscored'} onClick={() => setCat('unscored')} className={chip(cat === 'unscored')}>
+              {t.library.notScored} <span className={cat === 'unscored' ? 'text-[#4a4f59]' : 'text-muted'}>{unscored}</span>
+            </button>
+          )}
           {categories.map((c) => (
             <button key={c.id} type="button" aria-pressed={cat === c.id} onClick={() => setCat(c.id)} className={chip(cat === c.id)}>
               {c.name} <span className={cat === c.id ? 'text-[#4a4f59]' : 'text-muted'}>{c.count}</span>
@@ -187,7 +195,7 @@ export function LibraryView({
                 ? t.library.unselectShown
                 : cat === 'all'
                   ? t.library.selectAll
-                  : t.library.selectAllIn(categories.find((c) => c.id === cat)?.name ?? '')}
+                  : t.library.selectAllIn(cat === 'unscored' ? t.library.notScored : (categories.find((c) => c.id === cat)?.name ?? ''))}
             </button>
             <button
               type="button"
@@ -264,6 +272,9 @@ function GridItem({ g, selecting, selected, onToggle }: { g: LibraryGame; select
           <span className={g.after !== null ? 'text-ink' : 'text-faint'}>{t.library.afterValue(fmtScore(g.after))}</span>
         </span>
         {!g.can_play && <span className="text-xs text-muted">{t.library.cantPlayYet}</span>}
+        {g.steam_min !== null && g.steam_min > 0 && g.after === null && (
+          <span className="truncate text-xs text-muted">{t.steam.playtime(g.steam_min)}</span>
+        )}
       </span>
     </>
   )

@@ -9,7 +9,8 @@ import { authMode } from '@/lib/env'
 import { createSupabaseServer } from '@/lib/supabase/server'
 import { isValidScore, safePath } from '@/lib/format'
 import { steamArt } from '@/lib/search/steam'
-import { sendAfterReminders } from '@/lib/email'
+import { sendAfterReminders, sendInviteEmail } from '@/lib/email'
+import { syncSteam } from '@/lib/connect/steam'
 import { after } from 'next/server'
 import { getT } from '@/i18n/server'
 import { LANG_COOKIE, isLocale } from '@/i18n/config'
@@ -35,6 +36,10 @@ const SQL_MESSAGES: Record<string, ErrorKey> = {
   "That invite code doesn't match a list": 'badInvite',
   'Unknown status': 'unknownStatus',
   'Unknown language': 'badRequest',
+  'Bad request': 'badRequest',
+  'Connect Steam first': 'connectSteamFirst',
+  'That Steam account is already connected to another player': 'steamTaken',
+  'You can only invite friends you can see here': 'cantInvite',
 }
 
 async function fail(key: ErrorKey): Promise<{ ok: false; error: string }> {
@@ -428,6 +433,74 @@ export async function setEmailReminders(on: boolean): Promise<Result> {
     return null
   })
   if (res.ok) refresh()
+  return res
+}
+
+// ----- Steam, Discord, friends ----------------------------------------------------------------
+
+/** Account → Steam → Sync again. */
+export async function syncSteamNow(): Promise<Result<{ status: string; added: number; total: number }>> {
+  const me = await requireMe()
+  const res = await syncSteam(me.id)
+  refresh()
+  if (!res.ok) return { ok: false, error: (await getT()).steam.syncFailed[res.reason] }
+  return { ok: true, data: { status: res.status, added: res.added, total: res.total } }
+}
+
+export async function disconnectSteam(): Promise<Result> {
+  const res = await run(async (tx) => {
+    await tx`select public.steam_unlink()`
+    return null
+  })
+  if (res.ok) refresh()
+  return res
+}
+
+export async function disconnectDiscord(): Promise<Result> {
+  const res = await run(async (tx) => {
+    await tx`select public.discord_unlink()`
+    return null
+  })
+  if (res.ok) refresh()
+  return res
+}
+
+/** To score → Played on Steam → Not now. */
+export async function skipSteamNudge(gameId: number): Promise<Result> {
+  const res = await run(async (tx) => {
+    await tx`select public.skip_steam_nudge(${gameId}::bigint)`
+    return null
+  })
+  if (res.ok) refresh()
+  return res
+}
+
+/** Find friends → Invite to a list. Emails them too, when emails are set up and they keep them on. */
+export async function inviteToList(listId: string, userId: string): Promise<Result<boolean>> {
+  if (!UUID.test(listId) || !UUID.test(userId)) return fail('badRequest')
+  const res = await run(async (tx, me) => {
+    const [row] = await tx<{ ok: boolean }[]>`select public.invite_to_list(${listId}::uuid, ${userId}::uuid) as ok`
+    return { sent: row.ok, from: me.id }
+  })
+  if (!res.ok) return res
+  if (res.data.sent) {
+    const from = res.data.from
+    after(() => sendInviteEmail(listId, userId, from).catch((e) => console.error('[email]', (e as Error).message)))
+  }
+  refresh()
+  return { ok: true, data: res.data.sent }
+}
+
+/** Lists → an invite → Join (true) or No thanks (false). */
+export async function answerInvite(listId: string, accept: boolean): Promise<Result> {
+  if (!UUID.test(listId)) return fail('badRequest')
+  const res = await run(async (tx) => {
+    await tx`select public.answer_invite(${listId}::uuid, ${accept})`
+    return null
+  })
+  if (!res.ok) return res
+  revalidatePath('/', 'layout')
+  if (accept) redirect(`/lists/${listId}`)
   return res
 }
 

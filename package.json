@@ -10,7 +10,8 @@
     "db:reset": "scripts/db-local.sh reset",
     "db:test": "scripts/db-local.sh test",
     "e2e": "node e2e/flow.mjs",
-    "test:search": "node --experimental-strip-types --no-warnings --test src/lib/search/rank.test.ts"
+    "test:search": "node --experimental-strip-types --no-warnings --test src/lib/search/rank.test.ts src/lib/connect/steam-core.test.ts",
+    "e2e:serve": "node e2e/serve.mjs"
   },
   "dependencies": {
     "@fontsource-variable/bricolage-grotesque": "^5.3.0",

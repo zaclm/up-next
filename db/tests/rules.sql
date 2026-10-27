@@ -395,6 +395,122 @@ select public.clear_list_image((select id from t_list));
 select pg_temp.check((select (l ->> 'image_version') is null from jsonb_array_elements(public.my_lists()) l),
   'removing the picture goes back to the default');
 
+-- Steam ------------------------------------------------------------------------------
+select pg_temp.as_user('zac');
+do $$ begin
+  perform public.steam_sync('[]', 'ok');
+  raise exception 'FAILED: importing without a Steam account';
+exception when no_data_found then raise notice 'ok - importing needs a connected Steam account';
+end $$;
+select public.steam_link('76561198000000001', 'zac_steam', null);
+select pg_temp.as_user('karim');
+do $$ begin
+  perform public.steam_link('76561198000000001', 'not zac', null);
+  raise exception 'FAILED: two players on one Steam account';
+exception when raise_exception then raise notice 'ok - one Steam account belongs to one player';
+end $$;
+
+select pg_temp.as_user('zac');
+create temp table t_sync as select public.steam_sync('[
+  {"appid":553850,"name":"HELLDIVERS™ 2","playtime":7200,"playtime_2weeks":300,"last_played":1793000000},
+  {"appid":1145350,"name":"Hades II","playtime":900,"playtime_2weeks":120,"last_played":1793050000,"cover_url":"https://example.com/hades.jpg"},
+  {"appid":620,"name":"Portal 2","playtime":30,"playtime_2weeks":0,"last_played":1600000000}
+]', 'ok') as r;
+select pg_temp.check((select (r ->> 'added')::int from t_sync) = 2 and (select (r ->> 'total')::int from t_sync) = 3,
+  'importing adds the two games Zac didn''t have; Helldivers 2 was already in his library');
+select pg_temp.check((select steam_appid from games where id = pg_temp.g('hd2')) = 553850
+  and (select count(*) from games where title_key(title) = 'helldivers 2') = 1,
+  'Steam''s HELLDIVERS™ 2 lands on the existing Helldivers 2, no duplicate game');
+select pg_temp.check(
+  (select ug.can_play and ug.before_score is null and ug.after_score is null and g.cover_url = 'https://example.com/hades.jpg'
+   from user_games ug join games g on g.id = ug.game_id
+   where ug.user_id = pg_temp.uid('zac') and g.steam_appid = 1145350),
+  'a new game from Steam joins the library unscored, marked "I can play this", with its cover');
+select pg_temp.check(
+  (select (x ->> 'steam_min')::int from jsonb_array_elements(public.my_library() -> 'games') x where x ->> 'title' = 'Helldivers 2') = 7200,
+  'the library shows Steam playtime');
+select pg_temp.check(
+  (select string_agg(n ->> 'title', ',' order by ord) from jsonb_array_elements(public.steam_nudges()) with ordinality as t(n, ord))
+  = 'Helldivers 2,Hades II',
+  'Steam playtime nudges: games in your lists first, under an hour is skipped');
+select public.skip_steam_nudge((select id from games where steam_appid = 1145350));
+select pg_temp.check(
+  not exists (select 1 from jsonb_array_elements(public.steam_nudges()) n where n ->> 'title' = 'Hades II'),
+  'a dismissed nudge stays dismissed');
+select public.remove_from_library((select id from games where steam_appid = 620));
+select pg_temp.check(
+  (select (public.steam_sync('[{"appid":620,"name":"Portal 2","playtime":45}]', 'ok') ->> 'added')::int) = 0
+  and not exists (select 1 from user_games where user_id = pg_temp.uid('zac')
+                  and game_id = (select id from games where steam_appid = 620)),
+  'Sync again never brings back a game you removed from your library');
+
+-- Finding friends and invites -----------------------------------------------------------
+select pg_temp.as_user('karim');
+select public.steam_link('76561198000000002', 'karim_steam', null);
+select pg_temp.as_user('mehdi');
+select public.steam_link('76561198000000003', 'mehdi_steam', null);
+select pg_temp.as_user('zac');
+select public.steam_save_friends(array['76561198000000002', '76561198000000003', 'not-an-id']);
+select pg_temp.check(
+  (select string_agg(f ->> 'name', ',' order by f ->> 'name') from jsonb_array_elements(public.friend_suggestions()) f) = 'Karim,Mehdi'
+  and (select jsonb_array_length(f -> 'in_lists') from jsonb_array_elements(public.friend_suggestions()) f where f ->> 'name' = 'Mehdi') = 0,
+  'Zac''s Steam friends on Up Next show up, with the lists they share');
+select pg_temp.as_user('yassine');
+do $$ begin
+  perform public.invite_to_list((select id from t_list), pg_temp.uid('mehdi'));
+  raise exception 'FAILED: invited a stranger';
+exception when insufficient_privilege then raise notice 'ok - you can only invite people you can find';
+end $$;
+select pg_temp.as_user('zac');
+select pg_temp.check(public.invite_to_list((select id from t_list), pg_temp.uid('mehdi')),
+  'Zac invites his Steam friend Mehdi to Squad Night');
+select pg_temp.check(
+  (select (f -> 'invited_lists') ? (select id::text from t_list) from jsonb_array_elements(public.friend_suggestions()) f where f ->> 'name' = 'Mehdi'),
+  'the invite shows as sent');
+select pg_temp.as_user('mehdi');
+select pg_temp.check(
+  (select i ->> 'list_name' || ' from ' || (i ->> 'from_name') from jsonb_array_elements(public.my_invites()) i) = 'Squad Night from Zac',
+  'Mehdi sees the invite');
+select public.answer_invite((select id from t_list), true);
+select pg_temp.check(public.is_list_member((select id from t_list)) and jsonb_array_length(public.my_invites()) = 0,
+  'accepting joins the list and clears the invite');
+select pg_temp.as_user('zac');
+select pg_temp.check(public.invite_to_list((select id from t_list), pg_temp.uid('mehdi')) = false,
+  'inviting someone already in the list does nothing');
+
+select public.discord_save('111', '[{"id":"900000000000000001","name":"Friday Gamers","member_count":12},
+                                    {"id":"900000000000000002","name":"Huge Public","member_count":50000}]');
+select pg_temp.check((select count(*) from discord_guilds where user_id = pg_temp.uid('zac')) = 1,
+  'only small Discord servers are kept');
+select pg_temp.as_user('omar');
+select public.discord_save('222', '[{"id":"900000000000000002","name":"Huge Public","member_count":50000}]');
+select pg_temp.as_user('yassine');
+select public.discord_save('333', '[{"id":"900000000000000001","name":"Friday Gamers","member_count":12}]');
+select pg_temp.as_user('zac');
+select pg_temp.check(
+  (select f -> 'servers' from jsonb_array_elements(public.friend_suggestions()) f where f ->> 'name' = 'Yassine') = '["Friday Gamers"]'
+  and not exists (select 1 from jsonb_array_elements(public.friend_suggestions()) f where f ->> 'name' = 'Omar'),
+  'people from small Discord servers show up; big public servers never do');
+select pg_temp.as_user('yassine');
+select public.discord_unlink();
+select pg_temp.as_user('zac');
+select pg_temp.check(not exists (select 1 from jsonb_array_elements(public.friend_suggestions()) f where f ->> 'name' = 'Yassine'),
+  'turning Discord off removes you from suggestions');
+
+select pg_temp.check(
+  not has_function_privilege('authenticated', 'public.steam_link(text, text, text)', 'execute')
+  and not has_function_privilege('authenticated', 'public.steam_sync(jsonb, text)', 'execute')
+  and not has_function_privilege('authenticated', 'public.steam_save_friends(text[])', 'execute')
+  and not has_function_privilege('authenticated', 'public.discord_save(text, jsonb)', 'execute')
+  and not has_table_privilege('authenticated', 'public.steam_accounts', 'insert')
+  and not has_table_privilege('authenticated', 'public.discord_guilds', 'insert'),
+  'Steam and Discord identities can only be saved by the server after checking them');
+
+select public.steam_unlink();
+select pg_temp.check(public.my_connections() -> 'steam' = 'null'::jsonb
+  and exists (select 1 from user_games where user_id = pg_temp.uid('zac') and game_id = (select id from games where steam_appid = 1145350)),
+  'disconnecting Steam keeps the games in your library');
+
 -- Leaving: the creator leaves, the list moves to the next member
 select public.leave_list((select id from t_list));
 select pg_temp.check((select created_by from lists where id = (select id from t_list)) = pg_temp.uid('karim'),

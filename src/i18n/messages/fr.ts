@@ -21,6 +21,7 @@ export const fr: Messages = {
     library: 'Ma bibliothèque',
     addGame: 'Ajouter un jeu',
     account: 'Compte',
+    friends: 'Trouver des amis',
     join: 'Rejoindre une liste',
   },
 
@@ -66,6 +67,8 @@ export const fr: Messages = {
     allScored: 'Tout est noté',
     toScoreCount: (n: number) => `${n} à noter`,
     newInLists: (n: number) => `${newGames(n)} dans tes listes`,
+    friends: 'Trouver des amis',
+    invites: (n: number) => (n <= 1 ? `${n} invitation` : `${n} invitations`),
   },
 
   lists: {
@@ -275,6 +278,11 @@ export const fr: Messages = {
     intro: 'Les jeux de tes listes que tu n’as pas notés. Les chiffres des autres s’affichent une fois que tu as noté.',
     caughtUp: 'Tu es à jour',
     caughtUpBody: 'Quand un ami ajoute un jeu que tu n’as pas noté, ou que ton groupe en termine un, il apparaît ici.',
+    steamTitle: 'Joué sur Steam',
+    steamNote: `Tu y as passé du temps. C’était comment${nb}?`,
+    lastPlayed: (date: string) => `dernière partie ${date}`,
+    notNow: 'Plus tard',
+    notNowAria: (title: string) => `Plus tard${nb}: ${title}`,
     afterTitle: 'Ajoute ton score Après',
     afterNote: `Ton groupe y a joué ensemble. C’était comment, vraiment${nb}?`,
     needsScore: 'Attend ton score',
@@ -308,6 +316,7 @@ export const fr: Messages = {
     search: 'Chercher dans ta bibliothèque',
     filterByCategory: 'Filtrer par catégorie',
     all: 'Tous',
+    notScored: 'Pas notés',
     select: 'Sélectionner',
     done: 'Terminé',
     view: 'Affichage',
@@ -340,6 +349,93 @@ export const fr: Messages = {
     panelNote: 'Tes scores sont ajoutés avec. Les amis qui n’ont pas noté un jeu le retrouvent dans leur file À noter.',
     alreadyHad: 'Ces listes avaient déjà ces jeux.',
     addedAcross: (n: number, l: number) => `${games(n)} ${n <= 1 ? 'ajouté' : 'ajoutés'} dans ${lists(l)}.`,
+  },
+
+  steam: {
+    title: 'Steam',
+    note: 'Importe les jeux que tu possèdes et retrouve tes amis Steam',
+    connect: 'Connecter Steam',
+    connectHint:
+      'Tu te connectes sur la page de Steam ; Up Next ne voit jamais ton mot de passe. Tes amis Steam qui utilisent Up Next pourront ensuite te trouver.',
+    connectedAs: (name: string) => `Connecté en tant que ${name}`,
+    gameCount: (n: number) => `${games(n)} depuis Steam`,
+    lastSynced: (date: string) => `synchronisé ${date}`,
+    syncAgain: 'Synchroniser',
+    syncing: 'Synchronisation…',
+    disconnect: 'Déconnecter Steam',
+    yesDisconnect: 'Oui, déconnecter',
+    disconnectNote: 'Les jeux déjà dans ta bibliothèque restent.',
+    privateBody: `Steam n’a pas partagé tes jeux : tes détails de jeu sont privés. Sur Steam, ouvre Profil → Modifier le profil → Paramètres de confidentialité, mets «${nb}Détails des jeux${nb}» sur Public, puis appuie sur Synchroniser.`,
+    emptyBody: 'Steam indique que ce compte n’a aucun jeu. Si c’est faux, attends une minute et appuie sur Synchroniser.',
+    errorBody: 'Steam n’a pas répondu la dernière fois. Réessaie Synchroniser dans un instant.',
+    noKey: 'Ton compte Steam est connecté. L’import des jeux n’est pas encore activé dans l’appli ; il se fera tout seul dès qu’il le sera.',
+    synced: (added: number, total: number) =>
+      added
+        ? `${games(added)} ${added <= 1 ? 'ajouté' : 'ajoutés'} depuis Steam (${total} en tout). Ils sont dans ta bibliothèque, marqués «${nb}Je peux y jouer${nb}».`
+        : `À jour : les ${games(total)} étaient déjà dans ta bibliothèque.`,
+    results: {
+      imported: (n: number) =>
+        n
+          ? `Steam est connecté. ${games(n)} ${n <= 1 ? 'ajouté' : 'ajoutés'} à ta bibliothèque, marqués «${nb}Je peux y jouer${nb}».`
+          : 'Steam est connecté. Ta bibliothèque avait déjà tous tes jeux.',
+      private: 'Steam est connecté, mais tes détails de jeu sont privés : rien n’a encore été importé.',
+      empty: 'Steam est connecté, mais Steam indique que ce compte n’a aucun jeu.',
+      taken: 'Ce compte Steam est déjà connecté à un autre joueur Up Next.',
+      cancelled: 'La connexion Steam a été annulée.',
+      failed: 'Steam n’a pas pu confirmer la connexion. Réessaie.',
+      expired: 'Ça a pris trop de temps. Appuie de nouveau sur Connecter Steam.',
+      'no-key': 'Steam est connecté. L’import des jeux n’est pas encore activé dans l’appli.',
+      error: 'Steam est connecté, mais Steam n’a pas répondu. Réessaie Synchroniser dans un instant.',
+      'not-linked': 'Connecte d’abord Steam.',
+    },
+    syncFailed: {
+      'no-key': 'L’import des jeux Steam n’est pas encore activé dans l’appli.',
+      'not-linked': 'Connecte d’abord Steam.',
+      error: 'Steam n’a pas répondu. Réessaie dans un instant.',
+    },
+    playtime: (min: number) => (min < 60 ? `${min}${nb}min sur Steam` : `${Math.round(min / 60)}${nb}h sur Steam`),
+  },
+
+  discord: {
+    title: 'Serveurs Discord',
+    note: 'Discord ne partage pas les listes d’amis : Up Next peut donc te suggérer des gens de tes petits serveurs (100 membres ou moins) qui ont aussi activé ceci. Les gros serveurs sont ignorés.',
+    connect: 'Trouver des amis via mes serveurs Discord',
+    connected: (n: number) => (n <= 1 ? `Activé : ${n} petit serveur utilisé` : `Activé : ${n} petits serveurs utilisés`),
+    disconnect: 'Désactiver',
+    results: {
+      connected: 'C’est fait. Les gens de tes petits serveurs Discord qui utilisent Up Next apparaissent ci-dessous.',
+      cancelled: 'Discord a été annulé.',
+      failed: 'Discord n’a pas répondu. Réessaie.',
+      expired: 'Ça a pris trop de temps. Réessaie.',
+      'no-key': 'La recherche d’amis via Discord n’est pas encore activée dans l’appli.',
+    },
+  },
+
+  friends: {
+    title: 'Trouver des amis',
+    subtitle: 'Tes amis Steam et les membres de tes serveurs Discord qui utilisent déjà Up Next',
+    steamTitle: 'Amis Steam sur Up Next',
+    steamConnectFirst: 'Connecte Steam pour voir lesquels de tes amis Steam utilisent Up Next.',
+    steamNone:
+      'Aucun de tes amis Steam n’utilise encore Up Next, ou ta liste d’amis est privée sur Steam. Envoie-leur un lien d’invitation depuis les réglages d’une liste.',
+    discordTitle: 'Depuis tes serveurs Discord',
+    discordNone: 'Personne de tes petits serveurs n’a encore activé ceci.',
+    viaSteam: (name: string) => `Steam${nb}: ${name}`,
+    viaServers: (names: string) => `Discord${nb}: ${names}`,
+    inviteTo: 'Inviter dans',
+    invited: 'Invité',
+    inAll: 'Déjà dans toutes tes listes',
+    noLists: 'Crée d’abord une liste, puis invites-y tes amis.',
+    sent: (name: string, list: string) => `${name} est invité dans ${list}.`,
+    linkTip: `Des amis pas encore là${nb}? Envoie-leur le lien d’invitation depuis les réglages d’une liste.`,
+  },
+
+  invites: {
+    title: 'Invitations',
+    from: (from: string, list: string) => `${from} t’invite dans ${list}`,
+    with: (names: string) => `avec ${names}`,
+    join: 'Rejoindre',
+    decline: 'Non merci',
   },
 
   libraryGame: {
@@ -407,8 +503,8 @@ export const fr: Messages = {
     languageNote: 'Pour toute l’appli, sur tous tes appareils',
     emailTitle: 'Rappels par e-mail',
     emailNote: 'Envoyés à l’adresse avec laquelle tu te connectes',
-    emailLabel: 'M’écrire quand mon groupe a joué à un jeu ensemble',
-    emailHint: 'Un e-mail par jeu, pour te demander ton score Après',
+    emailLabel: 'M’écrire à propos de mes listes',
+    emailHint: 'Quand ton groupe a joué à un jeu ensemble, ou qu’un ami t’invite dans une liste',
     install: 'Installer l’appli',
     installNote: 'Garde Up Next sur ton écran d’accueil, comme n’importe quelle appli',
     installed: 'Up Next est installé sur cet appareil.',
@@ -449,6 +545,11 @@ export const fr: Messages = {
     missed: `Tu n’étais pas là${nb}? Appuie sur «${nb}Pas joué${nb}» dans À noter et on ne te le demandera plus.`,
     footer: 'Tu reçois cet e-mail parce que tu es dans cette liste sur Up Next.',
     turnOff: 'Ne plus recevoir ces e-mails',
+    inviteSubject: (from: string, list: string) => `${from} t’invite dans ${list} sur Up Next`,
+    inviteHeading: (list: string) => `Rejoindre ${list}${nb}?`,
+    inviteBody: (from: string, members: string) =>
+      `${from} t’invite dans sa liste sur Up Next, avec ${members}. Vos scores décident ensemble à quoi vous jouez ensuite.`,
+    inviteButton: 'Voir l’invitation',
   },
 
   errors: {
@@ -483,5 +584,8 @@ export const fr: Messages = {
     errorBody: 'Le chargement a échoué. Tes scores sont en sécurité. Réessaie dans un instant.',
     errorId: (id: string) => `Code d’erreur${nb}: ${id}`,
     tryAgain: 'Réessayer',
+    connectSteamFirst: 'Connecte d’abord Steam.',
+    steamTaken: 'Ce compte Steam est déjà connecté à un autre joueur Up Next.',
+    cantInvite: 'Tu ne peux inviter que les amis affichés dans Trouver des amis.',
   },
 }

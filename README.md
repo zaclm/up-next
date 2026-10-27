@@ -126,6 +126,22 @@ Emails go out through a Gmail account:
 
 A personal Gmail account can send to about 500 people a day. With your own domain later, a service such as Resend can replace Gmail; only `src/lib/email.ts` changes. Each batch writes one `[email]` line to the server logs (the game, how many sent, how many failed).
 
+### 8. Steam (import games, find Steam friends)
+
+Players connect Steam from Account. They sign in on Steam's own page (Steam OpenID, no key needed), and the app confirms the sign-in with Steam before linking the account. With a Steam Web API key, the app then imports the games they own (each one joins their library once, as "I can play this"), reads playtime for the "Played on Steam" nudges in To score, and saves their Steam friends for Find friends.
+
+1. Get a key at [steamcommunity.com/dev/apikey](https://steamcommunity.com/dev/apikey) (the Steam account must have spent at least $5). Domain: your live address.
+2. In Vercel, add `STEAM_WEB_API_KEY`, then redeploy.
+
+Without the key, players can still connect Steam; importing starts once the key is there (they tap Sync again). A player whose Steam "Game details" are private gets told how to make them public. Each sync writes one `[steam]` line to the server logs.
+
+### 9. Discord friend suggestions (opt-in)
+
+Discord doesn't let apps read friends lists. Instead, on Find friends a player can let Up Next read which Discord servers they're in; only servers with 100 members or fewer are kept, and two players are suggested to each other only when both turned this on and share one of those servers. The Discord token is handed back to Discord straight away.
+
+1. In the Discord developer portal, open the app you use for sign-in → OAuth2 → Redirects, and add `https://YOUR-SITE/api/discord/callback`.
+2. In Vercel, add `DISCORD_CLIENT_ID` and `DISCORD_CLIENT_SECRET` (same OAuth2 page), then redeploy.
+
 ---
 
 ## Where things are
@@ -141,7 +157,9 @@ A personal Gmail account can send to about 500 people a day. With your own domai
 | `src/lib/igdb.ts` | Game catalog search |
 | `src/proxy.ts` | Keeps the Supabase session fresh and sends signed-out visitors to `/login` |
 | `src/i18n/` | Languages: English (`messages/en.ts`, the source), French and Arabic. TypeScript checks every language has every message |
-| `e2e/flow.mjs` | Browser test of the main journey, including Arabic (right to left) and French |
+| `src/lib/connect/` | Steam sign-in check, Steam Web API, Discord servers |
+| `e2e/flow.mjs` | Browser test of the main journey, including Steam, Discord, invites, Arabic (right to left) and French |
+| `e2e/mock-services.mjs` | Fake Steam and Discord for that test (`npm run build && npm run e2e:serve`, then `npm run e2e`) |
 
 ### Languages
 
@@ -150,4 +168,5 @@ The app speaks English, French and Arabic. A player's choice (Account → Langua
 ## What's next
 
 - **Phase 2:** live: After-score reminders in To score and by email, install to the home screen, French and Arabic.
-- **Phase 3:** Steam import (owned games and playtime, to fill "can play" and suggest After scores).
+- **Phase 3:** Connect Steam (import owned games, playtime nudges, Sync again), Find friends (Steam friends, small Discord servers), invites to lists.
+- **Phase 4:** research other platforms (Xbox, PlayStation, Epic have no public library API; manual add covers them).

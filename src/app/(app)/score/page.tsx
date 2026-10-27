@@ -1,18 +1,19 @@
 import Link from 'next/link'
 import type { Metadata } from 'next'
-import { getQueue } from '@/lib/data'
+import { getQueue, getSteamNudges } from '@/lib/data'
 import { joinNames, monthYear } from '@/i18n/format'
 import { getT, type T } from '@/i18n/server'
 import type { QueueItem } from '@/lib/types'
 import { Cover, Icon, SectionHeading, btn, card, cx } from '@/components/ui'
 import { SkipAfterButton } from '@/components/skip-after'
+import { SkipSteamNudge } from '@/components/steam-nudge'
 
 export async function generateMetadata(): Promise<Metadata> {
   return { title: (await getT()).meta.toScore }
 }
 
 export default async function ScoreQueuePage() {
-  const [queue, t] = await Promise.all([getQueue(), getT()])
+  const [queue, nudges, t] = await Promise.all([getQueue(), getSteamNudges(), getT()])
   const after = queue.filter((g) => g.kind === 'after')
   const fresh = queue.filter((g) => g.kind === 'score')
   return (
@@ -25,7 +26,7 @@ export default async function ScoreQueuePage() {
         </p>
       </header>
 
-      {queue.length === 0 && (
+      {queue.length === 0 && nudges.length === 0 && (
         <section className={cx(card, 'flex flex-col gap-2 p-6')}>
           <h2 className="text-base font-semibold">{t.queue.caughtUp}</h2>
           <p className="text-muted">{t.queue.caughtUpBody}</p>
@@ -43,9 +44,41 @@ export default async function ScoreQueuePage() {
         </section>
       )}
 
+      {nudges.length > 0 && (
+        <section aria-labelledby="steam-h" className="flex flex-col gap-3">
+          <SectionHeading
+            id="steam-h"
+            title={<>{t.queue.steamTitle} <span className="font-normal text-muted">· {nudges.length}</span></>}
+            note={t.queue.steamNote}
+          />
+          <ul className={cx(card, 'flex flex-col py-1')}>
+            {nudges.map((g, i) => (
+              <li key={g.id} className={cx('flex items-center gap-3 px-4 py-3', i > 0 && 'border-t border-line')}>
+                <Cover src={g.cover_url} title={g.title} className="w-[42px] shrink-0 rounded-md" />
+                <span className="flex min-w-0 flex-1 flex-col">
+                  <span className="truncate font-semibold">
+                    <bdi>{g.title}</bdi>
+                  </span>
+                  <span className="truncate text-[12.5px] text-muted">
+                    {t.steam.playtime(g.playtime_min)}
+                    {g.last_played_at ? ` · ${t.queue.lastPlayed(monthYear(t.locale, g.last_played_at))}` : ''}
+                  </span>
+                </span>
+                <span className="flex shrink-0 flex-col items-end gap-0.5 sm:flex-row-reverse sm:items-center sm:gap-1">
+                  <Link href={`/library/${g.id}?played=1`} className={btn.score}>
+                    {t.queue.addAfter}
+                  </Link>
+                  <SkipSteamNudge gameId={g.id} title={g.title} />
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       {fresh.length > 0 && (
         <section aria-labelledby="new-h" className="flex flex-col gap-3">
-          {after.length > 0 && (
+          {(after.length > 0 || nudges.length > 0) && (
             <SectionHeading id="new-h" title={<>{t.queue.needsScore} <span className="font-normal text-muted">· {fresh.length}</span></>} />
           )}
           <QueueList items={fresh} t={t} />

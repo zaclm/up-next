@@ -1,18 +1,19 @@
 import Link from 'next/link'
 import type { Metadata } from 'next'
-import { getMyLists } from '@/lib/data'
+import { getInvites, getMyLists } from '@/lib/data'
 import { fmtScore } from '@/lib/format'
 import { getT } from '@/i18n/server'
 import { AvatarStack, Icon, SectionHeading, btn, card, cx } from '@/components/ui'
 import { CreateListForm, JoinListForm } from '@/components/list-forms'
 import { ListIcon } from '@/components/list-icon'
+import { InviteCard } from '@/components/invites'
 
 export async function generateMetadata(): Promise<Metadata> {
   return { title: (await getT()).meta.myLists }
 }
 
 export default async function ListsPage() {
-  const [lists, t] = await Promise.all([getMyLists(), getT()])
+  const [lists, invites, t] = await Promise.all([getMyLists(), getInvites(), getT()])
   return (
     <main className="mx-auto flex w-full max-w-[880px] flex-col gap-8 px-5 pt-4 pb-10 lg:px-10 lg:pt-7">
       <header className="flex items-start justify-between gap-4">
@@ -22,10 +23,25 @@ export default async function ListsPage() {
             {lists.length ? t.lists.subtitleSome(lists.length) : t.lists.subtitleNone}
           </p>
         </div>
-        <Link href="/account" className="text-[13px] text-muted hover:text-ink lg:hidden">
-          {t.nav.account}
-        </Link>
+        <span className="flex shrink-0 items-center gap-1">
+          <Link href="/friends" aria-label={t.nav.friends} className={cx(btn.secondary, 'min-h-10 px-3 text-[13.5px]')}>
+            <Icon.userPlus size={18} />
+            <span className="hidden sm:inline">{t.nav.friends}</span>
+          </Link>
+          <Link href="/account" className="flex min-h-10 items-center px-2 text-[13px] text-muted hover:text-ink lg:hidden">
+            {t.nav.account}
+          </Link>
+        </span>
       </header>
+
+      {invites.length > 0 && (
+        <section aria-labelledby="invites-h" id="invites" className="flex scroll-mt-6 flex-col gap-3">
+          <SectionHeading id="invites-h" title={<>{t.invites.title} <span className="font-normal text-muted">· {invites.length}</span></>} />
+          {invites.map((i) => (
+            <InviteCard key={i.list_id} invite={i} />
+          ))}
+        </section>
+      )}
 
       {lists.length > 0 && (
         <section aria-label={t.lists.yourLists} className="flex flex-col gap-3">

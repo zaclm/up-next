@@ -12,8 +12,14 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: (await getT()).meta.game }
 }
 
-export default async function LibraryGamePage({ params }: { params: Promise<{ gameId: string }> }) {
-  const { gameId } = await params
+export default async function LibraryGamePage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ gameId: string }>
+  searchParams: Promise<{ played?: string }>
+}) {
+  const [{ gameId }, { played }] = await Promise.all([params, searchParams])
   const [library, lists, t] = await Promise.all([getLibrary(), getMyLists(), getT()])
   const g = library.games.find((x) => String(x.id) === gameId)
   if (!g) notFound()
@@ -33,7 +39,9 @@ export default async function LibraryGamePage({ params }: { params: Promise<{ ga
         <div className="flex items-end gap-4 lg:w-[240px] lg:shrink-0 lg:flex-col lg:items-stretch">
           <Cover src={g.cover_url} title={g.title} alt={t.common.coverAlt(g.title)} className="w-[112px] rounded-lg lg:w-full lg:rounded-xl" />
           <div className="flex min-w-0 flex-col gap-1 pb-1">
-            <span className="text-xs text-muted">{[g.release_year, g.genres.slice(0, 3).join(', ')].filter(Boolean).join(' · ')}</span>
+            <span className="text-xs text-muted">
+              {[g.release_year, g.genres.slice(0, 3).join(', '), g.steam_min ? t.steam.playtime(g.steam_min) : null].filter(Boolean).join(' · ')}
+            </span>
             <h1 className="font-display text-2xl leading-[30px] font-bold tracking-tight"><bdi>{g.title}</bdi></h1>
           </div>
         </div>
@@ -46,6 +54,7 @@ export default async function LibraryGamePage({ params }: { params: Promise<{ ga
               gameId={g.id}
               initial={{ before: g.before, after: g.after, canPlay: g.can_play }}
               saveLabel={t.game.updateScore}
+              startPlayed={played === '1'}
             />
           </section>
 

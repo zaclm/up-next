@@ -17,6 +17,7 @@ export const en = {
     library: 'My library',
     addGame: 'Add a game',
     account: 'Account',
+    friends: 'Find friends',
     join: 'Join a list',
   },
 
@@ -62,6 +63,8 @@ export const en = {
     allScored: 'All scored',
     toScoreCount: (n: number) => `${n} to score`,
     newInLists: (n: number) => (n === 1 ? '1 new game in your lists' : `${n} new games in your lists`),
+    friends: 'Find friends',
+    invites: (n: number) => (n === 1 ? '1 invite' : `${n} invites`),
   },
 
   lists: {
@@ -268,6 +271,11 @@ export const en = {
     intro: "Games in your lists you haven't scored. Other people's numbers show once you score.",
     caughtUp: "You're all caught up",
     caughtUpBody: "When a friend adds a game you haven't scored, or your group finishes one, it shows up here.",
+    steamTitle: 'Played on Steam',
+    steamNote: 'You’ve put time into these. How were they?',
+    lastPlayed: (date: string) => `last played ${date}`,
+    notNow: 'Not now',
+    notNowAria: (title: string) => `Not now: ${title}`,
     afterTitle: 'Add your After score',
     afterNote: 'Your group played these together. How were they really?',
     needsScore: 'Needs your score',
@@ -301,6 +309,7 @@ export const en = {
     search: 'Search your library',
     filterByCategory: 'Filter by category',
     all: 'All',
+    notScored: 'Not scored',
     select: 'Select',
     done: 'Done',
     view: 'View',
@@ -333,6 +342,89 @@ export const en = {
     panelNote: "Your scores go in with them. Friends who haven't scored a game get it in their To score queue.",
     alreadyHad: 'Those lists already had these games.',
     addedAcross: (n: number, l: number) => `Added ${games(n)} across ${lists(l)}.`,
+  },
+
+  steam: {
+    title: 'Steam',
+    note: 'Import the games you own and find your Steam friends',
+    connect: 'Connect Steam',
+    connectHint: 'You sign in on Steam’s own page; Up Next never sees your password. Your Steam friends who use Up Next can then find you.',
+    connectedAs: (name: string) => `Connected as ${name}`,
+    gameCount: (n: number) => `${games(n)} from Steam`,
+    lastSynced: (date: string) => `last synced ${date}`,
+    syncAgain: 'Sync again',
+    syncing: 'Syncing…',
+    disconnect: 'Disconnect Steam',
+    yesDisconnect: 'Yes, disconnect',
+    disconnectNote: 'Games already in your library stay.',
+    privateBody:
+      'Steam didn’t share your games: your game details are private. On Steam, open Profile → Edit Profile → Privacy Settings, set “Game details” to Public, then tap Sync again.',
+    emptyBody: 'Steam says this account has no games. If that’s wrong, wait a minute and tap Sync again.',
+    errorBody: 'Steam didn’t answer last time. Try Sync again in a moment.',
+    noKey: 'Your Steam account is connected. Importing games isn’t switched on in this app yet; it will happen on its own once it is.',
+    synced: (added: number, total: number) =>
+      added ? `Added ${games(added)} from Steam (${total} in all). They’re in your library as “I can play this”.` : `Up to date: all ${games(total)} were already in your library.`,
+    results: {
+      imported: (n: number) =>
+        n ? `Steam is connected. Added ${games(n)} to your library as “I can play this”.` : 'Steam is connected. Your library already had all your games.',
+      private: 'Steam is connected, but your game details are private, so nothing was imported yet.',
+      empty: 'Steam is connected, but Steam says this account has no games.',
+      taken: 'That Steam account is already connected to another Up Next player.',
+      cancelled: 'Steam sign-in was cancelled.',
+      failed: 'Steam couldn’t confirm the sign-in. Try again.',
+      expired: 'That took too long. Tap Connect Steam again.',
+      'no-key': 'Steam is connected. Importing games isn’t switched on in this app yet.',
+      error: 'Steam is connected, but Steam didn’t answer. Try Sync again in a moment.',
+      'not-linked': 'Connect Steam first.',
+    },
+    syncFailed: {
+      'no-key': 'Importing games from Steam isn’t switched on in this app yet.',
+      'not-linked': 'Connect Steam first.',
+      error: 'Steam didn’t answer. Try again in a moment.',
+    },
+    playtime: (min: number) => (min < 60 ? `${min} min on Steam` : `${Math.round(min / 60)} h on Steam`),
+  },
+
+  discord: {
+    title: 'Discord servers',
+    note: 'Discord doesn’t share friends lists, so Up Next can suggest people from your small servers (100 members or fewer) who turned this on too. Bigger servers are skipped.',
+    connect: 'Find friends from my Discord servers',
+    connected: (n: number) => (n === 1 ? 'On: using 1 small server' : `On: using ${n} small servers`),
+    disconnect: 'Turn off',
+    results: {
+      connected: 'Done. People from your small Discord servers who use Up Next show up below.',
+      cancelled: 'Discord was cancelled.',
+      failed: 'Discord didn’t answer. Try again.',
+      expired: 'That took too long. Try again.',
+      'no-key': 'Finding friends through Discord isn’t switched on in this app yet.',
+    },
+  },
+
+  friends: {
+    title: 'Find friends',
+    subtitle: 'Steam friends and Discord-server mates who already use Up Next',
+    steamTitle: 'Steam friends on Up Next',
+    steamConnectFirst: 'Connect Steam to see which of your Steam friends use Up Next.',
+    steamNone:
+      'None of your Steam friends use Up Next yet, or your friends list is private on Steam. Send them an invite link from a list’s settings.',
+    discordTitle: 'From your Discord servers',
+    discordNone: 'Nobody from your small servers has turned this on yet.',
+    viaSteam: (name: string) => `Steam: ${name}`,
+    viaServers: (names: string) => `Discord: ${names}`,
+    inviteTo: 'Invite to',
+    invited: 'Invited',
+    inAll: 'Already in all your lists',
+    noLists: 'Make a list first, then invite friends to it.',
+    sent: (name: string, list: string) => `${name} is invited to ${list}.`,
+    linkTip: 'Friends not here yet? Send them the invite link from a list’s settings.',
+  },
+
+  invites: {
+    title: 'Invites',
+    from: (from: string, list: string) => `${from} invited you to ${list}`,
+    with: (names: string) => `with ${names}`,
+    join: 'Join',
+    decline: 'No thanks',
   },
 
   libraryGame: {
@@ -400,8 +492,8 @@ export const en = {
     languageNote: 'For the whole app, on all your devices',
     emailTitle: 'Email reminders',
     emailNote: 'Sent to the address you sign in with',
-    emailLabel: 'Email me when my group plays a game together',
-    emailHint: 'One email per game, asking for your After score',
+    emailLabel: 'Email me about my lists',
+    emailHint: 'When your group plays a game together, or a friend invites you to a list',
     install: 'Install the app',
     installNote: 'Keep Up Next on your home screen, like any other app',
     installed: 'Up Next is installed on this device.',
@@ -442,6 +534,11 @@ export const en = {
     missed: 'Missed that session? Tap “Didn’t play” in To score and you won’t be asked again.',
     footer: 'You get this because you’re in this list on Up Next.',
     turnOff: 'Turn these emails off',
+    inviteSubject: (from: string, list: string) => `${from} invited you to ${list} on Up Next`,
+    inviteHeading: (list: string) => `Join ${list}?`,
+    inviteBody: (from: string, members: string) =>
+      `${from} invited you to their list on Up Next, with ${members}. Your scores decide together what you all play next.`,
+    inviteButton: 'See the invite',
   },
 
   errors: {
@@ -476,6 +573,9 @@ export const en = {
     errorBody: "That didn't load. Your scores are safe. Try again in a moment.",
     errorId: (id: string) => `Error id: ${id}`,
     tryAgain: 'Try again',
+    connectSteamFirst: 'Connect Steam first.',
+    steamTaken: 'That Steam account is already connected to another Up Next player.',
+    cantInvite: 'You can only invite friends shown on Find friends.',
   },
 }
 

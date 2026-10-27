@@ -2,7 +2,7 @@ import 'server-only'
 import { notFound, redirect } from 'next/navigation'
 import { asUser, isPostgresError } from './db'
 import { requireMe } from './auth'
-import type { Board, Library, ListGame, ListSummary, QueueItem } from './types'
+import type { Board, Connections, FriendSuggestion, Library, ListGame, ListInvite, ListSummary, QueueItem, SteamNudge } from './types'
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -70,6 +70,17 @@ export async function getLibrary(): Promise<Library> {
     }),
   )
 }
+
+/** Runs one read-only database function as the signed-in player and returns its value. */
+async function mine<T>(query: (tx: Parameters<Parameters<typeof asUser>[1]>[0]) => Promise<{ v: T }[]>): Promise<T> {
+  const me = await requireMe()
+  return read(() => asUser(me.id, async (tx) => (await query(tx))[0].v))
+}
+
+export const getConnections = () => mine<Connections>((tx) => tx`select public.my_connections() as v`)
+export const getSteamNudges = () => mine<SteamNudge[]>((tx) => tx`select public.steam_nudges() as v`)
+export const getFriendSuggestions = () => mine<FriendSuggestion[]>((tx) => tx`select public.friend_suggestions() as v`)
+export const getInvites = () => mine<ListInvite[]>((tx) => tx`select public.my_invites() as v`)
 
 export function isUuid(v: string) {
   return UUID.test(v)
