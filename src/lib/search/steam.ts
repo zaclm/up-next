@@ -64,14 +64,15 @@ export function steamSearch(query: string) {
 }
 
 const ART_TTL = 24 * 60 * 60 * 1000
-const artCache = new Map<number, { at: number; value: { cover: string | null; header: string | null } }>()
+type Art = { cover: string | null; header: string | null; name: string | null }
+const artCache = new Map<number, { at: number; value: Art }>()
 
 /**
  * The real cover and header for each Steam app, from Steam's store service (one request for
  * up to 20 games). Older games also answer at the old fixed address; new ones only here.
  */
 export async function steamArt(appids: number[]) {
-  const out = new Map<number, { cover: string | null; header: string | null }>()
+  const out = new Map<number, Art>()
   const missing: number[] = []
   for (const id of new Set(appids)) {
     const hit = artCache.get(id)
@@ -85,9 +86,9 @@ export async function steamArt(appids: number[]) {
       data_request: { include_assets: true },
     }
     const res = await get(`${steamApiBase()}/IStoreBrowseService/GetItems/v1?input_json=` + encodeURIComponent(JSON.stringify(input)))
-    const body = (await res.json()) as { response?: { store_items?: { appid: number; assets?: SteamAssets }[] } }
+    const body = (await res.json()) as { response?: { store_items?: { appid: number; name?: string; assets?: SteamAssets }[] } }
     for (const item of body.response?.store_items ?? []) {
-      const value = assetUrls(item.assets)
+      const value = { ...assetUrls(item.assets), name: item.name ? cleanSteamName(item.name) : null }
       if (artCache.size > 2000) artCache.delete(artCache.keys().next().value!)
       artCache.set(item.appid, { at: Date.now(), value })
       out.set(item.appid, value)

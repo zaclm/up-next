@@ -19,6 +19,11 @@ export const steamAccounts = {
       { appid: 1145350, name: 'Hades II', playtime_forever: 900, playtime_2weeks: 120, rtime_last_played: now - day },
       { appid: 620, name: 'Portal 2', playtime_forever: 30, rtime_last_played: now - 900 * day },
       { appid: 105600, name: 'Terraria', playtime_forever: 0 },
+      // Like the real API: left out unless asked for with include_free_sub / skip_unvetted_apps=false
+      { appid: 230410, name: 'Warframe', playtime_forever: 0, free_sub: true },
+      { appid: 1364780, name: 'Street Fighter 6', playtime_forever: 600, rtime_last_played: now - 10 * day, unvetted: true },
+      // Listed without a name: the store knows it
+      { appid: 999999, playtime_forever: 0 },
     ],
     friends: ['76561198000000002', '76561198000000004', '76561198000000099'],
   },
@@ -113,7 +118,11 @@ export function startMock() {
     if (path === '/IPlayerService/GetOwnedGames/v1/') {
       const a = steamAccounts[q.get('steamid')]
       if (!a || a.private) return send(res, 200, { response: {} })
-      return send(res, 200, { response: { game_count: a.games.length, games: a.games } })
+      const games = a.games
+        .filter((g) => !g.free_sub || q.get('include_free_sub') === 'true')
+        .filter((g) => !g.unvetted || q.get('skip_unvetted_apps') === 'false')
+        .map(({ free_sub, unvetted, ...g }) => g)
+      return send(res, 200, { response: { game_count: games.length, games } })
     }
     if (path === '/ISteamUser/GetFriendList/v1/') {
       const a = steamAccounts[q.get('steamid')]
@@ -127,7 +136,8 @@ export function startMock() {
     }
     if (path === '/IStoreBrowseService/GetItems/v1') {
       const input = JSON.parse(q.get('input_json') ?? '{}')
-      return send(res, 200, { response: { store_items: (input.ids ?? []).map(({ appid }) => ({ appid })) } })
+      const storeNames = { 999999: 'Mystery Game' }
+      return send(res, 200, { response: { store_items: (input.ids ?? []).map(({ appid }) => ({ appid, ...(storeNames[appid] ? { name: storeNames[appid] } : {}) })) } })
     }
 
     // ---- Discord ----

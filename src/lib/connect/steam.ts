@@ -3,7 +3,7 @@ import { asUser, db } from '@/lib/db'
 import { steamArt } from '@/lib/search/steam'
 import { cleanSteamName } from '@/lib/search/steam-parse'
 import { steamApiBase, steamApiKey, steamOpenIdUrl } from './config'
-import { isValidCheck, parseFriendList, parseOwnedGames, parsePlayers, readOpenIdReturn, type Owned } from './steam-core'
+import { OWNED_GAMES_PARAMS, isValidCheck, parseFriendList, parseOwnedGames, parsePlayers, readOpenIdReturn, type Owned } from './steam-core'
 
 async function steamGet(path: string, params: Record<string, string>) {
   const key = steamApiKey()
@@ -39,12 +39,8 @@ export async function steamPlayer(steamId: string) {
 }
 
 async function ownedGames(steamId: string): Promise<Owned> {
-  const res = await steamGet('/IPlayerService/GetOwnedGames/v1/', {
-    steamid: steamId,
-    include_appinfo: 'true',
-    include_played_free_games: 'true',
-  })
-  if (res.status === 401 || res.status === 403) return { status: 'private', games: [] }
+  const res = await steamGet('/IPlayerService/GetOwnedGames/v1/', { steamid: steamId, ...OWNED_GAMES_PARAMS })
+  if (res.status === 401 || res.status === 403) return { status: 'private', games: [], reported: 0 }
   if (!res.ok) throw new Error(`GetOwnedGames answered ${res.status}`)
   return parseOwnedGames(await res.json(), cleanSteamName)
 }
@@ -57,24 +53,32 @@ async function friendIds(steamId: string): Promise<string[] | null> {
   return parseFriendList(await res.json())
 }
 
-/** Real covers for games Up Next doesn't have a cover for yet, 20 per request. */
-async function coversFor(appids: number[]) {
-  const out = new Map<number, string>()
-  if (!appids.length) return out
+/**
+ * From Steam's store, for games Up Next doesn't have a cover for yet: the real cover, and the
+ * name when GetOwnedGames left it out. 20 games per request.
+ */
+async function storeDetails(games: { appid: number; name: string }[]) {
+  const covers = new Map<number, string>()
+  const names = new Map<number, string>()
+  if (!games.length) return { covers, names }
+  const appids = games.map((g) => g.appid)
   const have = await db()<{ steam_appid: string }[]>`
     select steam_appid from public.games where steam_appid = any(${appids}::bigint[]) and cover_url is not null`
   const known = new Set(have.map((r) => Number(r.steam_appid)))
-  const missing = appids.filter((id) => !known.has(id))
+  const wanted = games.filter((g) => !known.has(g.appid) || !g.name).map((g) => g.appid)
   const chunks: number[][] = []
-  for (let i = 0; i < missing.length; i += 20) chunks.push(missing.slice(i, i + 20))
+  for (let i = 0; i < wanted.length; i += 20) chunks.push(wanted.slice(i, i + 20))
   for (let i = 0; i < chunks.length; i += 4) {
     const results = await Promise.allSettled(chunks.slice(i, i + 4).map((c) => steamArt(c)))
     for (const r of results) {
       if (r.status !== 'fulfilled') continue
-      for (const [appid, art] of r.value) if (art.cover ?? art.header) out.set(appid, (art.cover ?? art.header)!)
+      for (const [appid, art] of r.value) {
+        if (!known.has(appid) && (art.cover ?? art.header)) covers.set(appid, (art.cover ?? art.header)!)
+        if (art.name) names.set(appid, art.name)
+      }
     }
   }
-  return out
+  return { covers, names }
 }
 
 export type SyncResult =
@@ -92,8 +96,8 @@ export async function syncSteam(userId: string): Promise<SyncResult> {
       friendIds(account.steam_id).catch(() => null),
       steamPlayer(account.steam_id),
     ])
-    const covers = await coversFor(owned.games.map((g) => g.appid))
-    const payload = owned.games.map((g) => ({ ...g, cover_url: covers.get(g.appid) ?? null }))
+    const { covers, names } = await storeDetails(owned.games)
+    const payload = owned.games.map((g) => ({ ...g, name: g.name || names.get(g.appid) || '', cover_url: covers.get(g.appid) ?? null }))
     const result = await asUser(userId, async (tx) => {
       if (player?.name || player?.avatar) {
         await tx`update public.steam_accounts set persona_name = coalesce(${player.name}, persona_name),
@@ -108,7 +112,18 @@ export async function syncSteam(userId: string): Promise<SyncResult> {
       }
       return { ...row.r, friends: friendCount }
     })
-    console.log('[steam] sync', JSON.stringify({ status: owned.status, games: owned.games.length, added: result.added, friends: result.friends }))
+    console.log(
+      '[steam] sync',
+      JSON.stringify({
+        status: owned.status,
+        reported: owned.reported,
+        games: owned.games.length,
+        unnamed: payload.filter((g) => !g.name).length,
+        added: result.added,
+        total: result.total,
+        friends: result.friends,
+      }),
+    )
     return { ok: true, status: owned.status, added: result.added, total: result.total, friends: result.friends }
   } catch (e) {
     console.error('[steam] sync failed:', (e as Error).message)

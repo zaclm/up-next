@@ -45,7 +45,7 @@ export function isValidCheck(body: string) {
 }
 
 export type OwnedGame = { appid: number; name: string; playtime: number; playtime_2weeks: number; last_played: number }
-export type Owned = { status: 'ok' | 'private' | 'empty'; games: OwnedGame[] }
+export type Owned = { status: 'ok' | 'private' | 'empty'; games: OwnedGame[]; reported: number }
 
 type RawOwned = {
   response?: {
@@ -57,22 +57,35 @@ type RawOwned = {
 /**
  * IPlayerService/GetOwnedGames. A private "Game details" setting answers with an empty
  * response (no game_count); an account with no games answers game_count: 0.
+ * Games Steam lists without a name are kept with name '' so the caller can look the name up.
  */
 export function parseOwnedGames(body: RawOwned, clean: (name: string) => string = (n) => n): Owned {
   const r = body.response ?? {}
-  if (r.game_count === undefined && !r.games) return { status: 'private', games: [] }
+  if (r.game_count === undefined && !r.games) return { status: 'private', games: [], reported: 0 }
+  const seen = new Set<number>()
   const games = (r.games ?? [])
-    .filter((g) => Number.isSafeInteger(g.appid) && g.appid > 0 && g.name)
+    .filter((g) => Number.isSafeInteger(g.appid) && g.appid > 0 && !seen.has(g.appid) && seen.add(g.appid))
     .map((g) => ({
       appid: g.appid,
-      name: clean(g.name!),
+      name: g.name ? clean(g.name) : '',
       playtime: Math.max(0, Math.round(g.playtime_forever ?? 0)),
       playtime_2weeks: Math.max(0, Math.round(g.playtime_2weeks ?? 0)),
       last_played: Math.max(0, Math.round(g.rtime_last_played ?? 0)),
     }))
-    .filter((g) => g.name)
-  return { status: games.length ? 'ok' : 'empty', games }
+  return { status: games.length ? 'ok' : 'empty', games, reported: r.game_count ?? games.length }
 }
+
+/**
+ * What to ask GetOwnedGames for so the import matches the Steam library: free games you
+ * added or played (include_free_sub, include_played_free_games), and "profile-limited"
+ * games that Steam otherwise leaves out (skip_unvetted_apps=false).
+ */
+export const OWNED_GAMES_PARAMS = {
+  include_appinfo: 'true',
+  include_played_free_games: 'true',
+  include_free_sub: 'true',
+  skip_unvetted_apps: 'false',
+} as const
 
 /** ISteamUser/GetFriendList: the friends' Steam ids. */
 export function parseFriendList(body: { friendslist?: { friends?: { steamid?: string }[] } }) {

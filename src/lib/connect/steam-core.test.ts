@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { isValidCheck, openIdLoginUrl, parseFriendList, parseOwnedGames, readOpenIdReturn, STEAM_OPENID } from './steam-core.ts'
+import { OWNED_GAMES_PARAMS, isValidCheck, openIdLoginUrl, parseFriendList, parseOwnedGames, readOpenIdReturn, STEAM_OPENID } from './steam-core.ts'
 
 const RETURN = 'https://up-next-three.vercel.app/api/steam/callback?state=abc'
 const ID = '76561198000000001'
@@ -56,14 +56,34 @@ test('only "is_valid:true" from Steam counts as confirmed', () => {
 })
 
 test('owned games: private, empty and normal answers', () => {
-  assert.deepEqual(parseOwnedGames({ response: {} }), { status: 'private', games: [] })
-  assert.deepEqual(parseOwnedGames({ response: { game_count: 0 } }), { status: 'empty', games: [] })
+  assert.deepEqual(parseOwnedGames({ response: {} }), { status: 'private', games: [], reported: 0 })
+  assert.deepEqual(parseOwnedGames({ response: { game_count: 0 } }), { status: 'empty', games: [], reported: 0 })
   const r = parseOwnedGames(
-    { response: { game_count: 2, games: [{ appid: 553850, name: 'HELLDIVERS™ 2', playtime_forever: 7200.4, playtime_2weeks: 300, rtime_last_played: 1793000000 }, { appid: 0, name: 'bad' }] } },
+    {
+      response: {
+        game_count: 4,
+        games: [
+          { appid: 553850, name: 'HELLDIVERS™ 2', playtime_forever: 7200.4, playtime_2weeks: 300, rtime_last_played: 1793000000 },
+          { appid: 0, name: 'bad' },
+          { appid: 2403620 },
+          { appid: 553850, name: 'duplicate' },
+        ],
+      },
+    },
     (n) => n.replace('™', ''),
   )
   assert.equal(r.status, 'ok')
-  assert.deepEqual(r.games, [{ appid: 553850, name: 'HELLDIVERS 2', playtime: 7200, playtime_2weeks: 300, last_played: 1793000000 }])
+  assert.equal(r.reported, 4)
+  assert.deepEqual(r.games, [
+    { appid: 553850, name: 'HELLDIVERS 2', playtime: 7200, playtime_2weeks: 300, last_played: 1793000000 },
+    { appid: 2403620, name: '', playtime: 0, playtime_2weeks: 0, last_played: 0 },
+  ])
+})
+
+test('the import asks Steam for free and profile-limited games too', () => {
+  assert.equal(OWNED_GAMES_PARAMS.include_free_sub, 'true')
+  assert.equal(OWNED_GAMES_PARAMS.include_played_free_games, 'true')
+  assert.equal(OWNED_GAMES_PARAMS.skip_unvetted_apps, 'false')
 })
 
 test('friend list keeps only real Steam ids', () => {
